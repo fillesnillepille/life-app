@@ -23,6 +23,7 @@ type Call = { method: string; path: string; authorization: string | null; body?:
 
 function setup(handler: (call: Call, signIns: number) => Response) {
   const calls: Call[] = []
+  const sleeps: number[] = []
   let signIns = 0
   const fakeFetch = (async (input: string | URL | Request, init?: RequestInit) => {
     const url = new URL(String(input))
@@ -44,8 +45,12 @@ function setup(handler: (call: Call, signIns: number) => Response) {
     email: 'service@life-app.local',
     password: 'secret',
     fetch: fakeFetch,
+    createGapMs: 100,
+    sleep: async (ms) => {
+      sleeps.push(ms)
+    },
   })
-  return { store, calls }
+  return { store, calls, sleeps }
 }
 
 describe('PocketBase mail store', () => {
@@ -95,6 +100,49 @@ describe('PocketBase mail store', () => {
     })
     const rows = await store.list()
     assert.deepEqual(rows.map((r) => r.id), ['r1', 'r2', 'r3'])
+  })
+
+  it('waits and tries again when PocketBase says too many requests', async () => {
+    let writes = 0
+    const { store, sleeps } = setup((call) =>
+      call.path === '/api/collections/mails/records' && ++writes === 1
+        ? new Response(null, { status: 429 })
+        : Response.json({}),
+    )
+    await store.create(record)
+    assert.equal(writes, 2)
+    assert.deepEqual(sleeps, [2000])
+  })
+
+  it('uses the wait PocketBase advises, but never more than 30 seconds', async () => {
+    const answers = [
+      new Response(null, { status: 429, headers: { 'Retry-After': '7' } }),
+      new Response(null, { status: 429, headers: { 'Retry-After': '999' } }),
+    ]
+    const { store, sleeps } = setup((call) =>
+      call.path.startsWith('/api/collections/mails/records/abc')
+        ? (answers.shift() ?? Response.json({}))
+        : Response.json({}),
+    )
+    await store.update('abc', { seen: true })
+    assert.deepEqual(sleeps, [7000, 30000])
+  })
+
+  it('gives up after a few tries and says why', async () => {
+    const { store, calls } = setup(() => new Response(null, { status: 429 }))
+    await assert.rejects(store.remove('abc'), /429/)
+    assert.equal(calls.filter((c) => c.method === 'DELETE').length, 5)
+  })
+
+  it('spaces out creates but not other writes', async () => {
+    const { store, sleeps } = setup(() => Response.json({}))
+    await store.create(record)
+    await store.create({ ...record, uid: 2 })
+    await store.create({ ...record, uid: 3 })
+    await store.update('abc', { seen: true })
+    // The first create goes straight away; the next two wait for their turn.
+    assert.equal(sleeps.length, 2)
+    assert.ok(sleeps.every((ms) => ms > 0 && ms <= 200))
   })
 
   it('fails with a clear message and without the password', async () => {

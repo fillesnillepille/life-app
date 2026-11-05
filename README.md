@@ -61,7 +61,7 @@ docker compose -f deploy/docker-compose.yml up -d --force-recreate service
 docker compose -f deploy/docker-compose.yml logs service --tail 20
 ```
 
-The Mejl page shows when it last updated. If it says the sync failed, the log has the reason. A wrong app password is not retried, to avoid getting the account locked, so fix `.env` and restart.
+The first sync takes a couple of minutes, because PocketBase limits how fast records can be created, and mail appears on the Mejl page as it arrives. The page shows when it last updated. If it says the sync failed, the log has the reason. A wrong app password is not retried, to avoid getting the account locked, so fix `.env` and restart.
 
 To stop it, empty `GMAIL_APP_PASSWORD` and restart the service. To revoke access completely, delete the app password in the Google account.
 

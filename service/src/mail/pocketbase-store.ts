@@ -10,10 +10,26 @@ export function createPocketBaseMailStore(options: {
   email: string
   password: string
   fetch?: typeof fetch
+  // PocketBase limits how fast records can be created (by default 20 per 5
+  // seconds), so creates are spaced out to stay under that.
+  createGapMs?: number
+  // Test hook.
+  sleep?: (ms: number) => Promise<void>
 }): MailStore {
   const doFetch = options.fetch ?? fetch
   const base = options.url.replace(/\/$/, '')
+  const sleep =
+    options.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)))
+  const createGapMs = options.createGapMs ?? 350
   let token = ''
+  let lastCreate = 0
+
+  // Waits until at least createGapMs has passed since the previous create.
+  async function paceCreate() {
+    const wait = lastCreate + createGapMs - Date.now()
+    lastCreate = Math.max(Date.now(), lastCreate + createGapMs)
+    if (wait > 0) await sleep(wait)
+  }
 
   async function signIn() {
     const response = await doFetch(
@@ -54,6 +70,17 @@ export function createPocketBaseMailStore(options: {
       await signIn()
       response = await send()
     }
+    // "Too many requests": wait as long as PocketBase says, or back off, and
+    // try again a few times before giving up.
+    for (let attempt = 1; response.status === 429 && attempt <= 4; attempt++) {
+      const advised = Number(response.headers.get('Retry-After'))
+      await sleep(
+        Number.isFinite(advised) && advised > 0
+          ? Math.min(advised, 30) * 1000
+          : 2000 * 2 ** (attempt - 1),
+      )
+      response = await send()
+    }
     if (!response.ok) {
       throw new Error(`PocketBase answered ${response.status} for ${init.method ?? 'GET'} ${path.split('?')[0]}`)
     }
@@ -76,6 +103,7 @@ export function createPocketBaseMailStore(options: {
       }
     },
     async create(record) {
+      await paceCreate()
       await request('/api/collections/mails/records', {
         method: 'POST',
         body: JSON.stringify(record),
