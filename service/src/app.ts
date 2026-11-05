@@ -1,6 +1,8 @@
 import { Hono } from 'hono'
 import type { TokenVerifier } from './auth.ts'
 import { HomeAssistantError, type HomeAssistant } from './home-assistant.ts'
+import { notConfigured } from './mail/sync.ts'
+import type { MailStatus } from './mail/types.ts'
 
 const LIGHT_ID = /^light\.[a-z0-9_]+$/
 const SCENE_ID = /^scene\.[a-z0-9_]+$/
@@ -32,6 +34,7 @@ function parseLightChange(body: unknown) {
 export function createApp(
   homeAssistant: HomeAssistant,
   verifyToken: TokenVerifier,
+  mail: { status: () => MailStatus } = { status: () => notConfigured },
 ) {
   const app = new Hono()
 
@@ -55,6 +58,8 @@ export function createApp(
     }
     await next()
   })
+
+  app.get('/mail/status', (c) => c.json(mail.status()))
 
   app.get('/lights', async (c) =>
     c.json(await homeAssistant.listLightsAndScenes()),

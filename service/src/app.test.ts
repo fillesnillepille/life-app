@@ -293,3 +293,43 @@ describe('token verifier', () => {
     assert.equal(await verify('token'), 'unavailable')
   })
 })
+
+describe('mail status', () => {
+  const haFetch = (async () => Response.json([])) as typeof fetch
+
+  it('requires a signed-in user', async () => {
+    const homeAssistant = createHomeAssistant({ url: 'http://ha.test', token: 'x', fetch: haFetch })
+    const app = createApp(homeAssistant, async () => 'invalid')
+    const response = await app.request('/mail/status', {
+      headers: { Authorization: 'Bearer nope' },
+    })
+    assert.equal(response.status, 401)
+  })
+
+  it('says mail is not configured when no mailbox is set up', async () => {
+    const { app } = setup()
+    const response = await app.request('/mail/status', authorized())
+    assert.equal(response.status, 200)
+    assert.deepEqual(await response.json(), {
+      state: 'not_configured',
+      account: null,
+      lastSync: null,
+      count: 0,
+      error: null,
+    })
+  })
+
+  it('reports the status of the running sync', async () => {
+    const homeAssistant = createHomeAssistant({ url: 'http://ha.test', token: 'x', fetch: haFetch })
+    const status = {
+      state: 'connected' as const,
+      account: 'me@example.test',
+      lastSync: '2026-11-05T12:00:00.000Z',
+      count: 12,
+      error: null,
+    }
+    const app = createApp(homeAssistant, async () => 'valid', { status: () => status })
+    const response = await app.request('/mail/status', authorized())
+    assert.deepEqual(await response.json(), status)
+  })
+})

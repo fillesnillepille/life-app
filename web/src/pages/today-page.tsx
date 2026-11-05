@@ -1,13 +1,15 @@
 import { useState } from 'react'
 import { Check, X } from 'lucide-react'
 import { LightsPanel } from '@/components/lights-panel'
+import { MailPanel } from '@/components/mail-panel'
 import { Panel } from '@/components/panel'
+import { DailyTodosPanel } from '@/components/todo-list'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import { cn } from '@/lib/utils'
 
-// Everything on this page except the lights is sample data for judging the design.
+// Everything on this page except the lights and the to-do list is sample data
+// for judging the design.
 const sampleApprovals = [
   { id: 'reply', source: 'MEJL', text: 'Skicka utkastet till svar till exempelkontakten' },
   { id: 'move', source: 'KALENDER', text: 'Flytta exempelbokningen till torsdag 14:00' },
@@ -17,12 +19,6 @@ const sampleSchedule = [
   { time: '09:00', title: 'Exempelmöte', next: false },
   { time: '12:30', title: 'Exempellunch', next: true },
   { time: '17:15', title: 'Exempelträning', next: false },
-]
-
-const sampleTasks = [
-  { id: 'one', title: 'Exempeluppgift: betala en räkning', done: true },
-  { id: 'two', title: 'Exempeluppgift: boka en service', done: false },
-  { id: 'three', title: 'Exempeluppgift: svara på ett meddelande', done: false },
 ]
 
 const sampleStats = [
@@ -46,17 +42,9 @@ const dateFormat = new Intl.DateTimeFormat('sv-SE', {
 export function TodayPage() {
   const [today] = useState(() => dateFormat.format(new Date()))
   const [approvals, setApprovals] = useState(sampleApprovals)
-  const [tasks, setTasks] = useState(sampleTasks)
 
   const resolveApproval = (id: string) =>
     setApprovals((items) => items.filter((item) => item.id !== id))
-
-  const toggleTask = (id: string, done: boolean) =>
-    setTasks((items) =>
-      items.map((item) => (item.id === id ? { ...item, done } : item)),
-    )
-
-  const tasksOpen = tasks.filter((task) => !task.done).length
 
   return (
     <div className="space-y-4">
@@ -131,30 +119,9 @@ export function TodayPage() {
 
         <LightsPanel />
 
-        <Panel
-          title="Uppgifter"
-          meta={`${tasksOpen} ${tasksOpen === 1 ? 'öppen' : 'öppna'}`}
-        >
-          <ul className="divide-y">
-            {tasks.map((task) => (
-              <li key={task.id}>
-                <label className="flex min-h-11 cursor-pointer items-center gap-3 px-3 py-2 text-sm">
-                  <Checkbox
-                    checked={task.done}
-                    onCheckedChange={(done) => toggleTask(task.id, done)}
-                  />
-                  <span
-                    className={cn(
-                      task.done && 'text-muted-foreground line-through',
-                    )}
-                  >
-                    {task.title}
-                  </span>
-                </label>
-              </li>
-            ))}
-          </ul>
-        </Panel>
+        <DailyTodosPanel />
+
+        <MailPanel />
 
         <Panel title="Vanor" meta="Senaste 7 dagarna">
           <ul className="divide-y">

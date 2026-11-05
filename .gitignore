@@ -15,3 +15,10 @@ pocketbase/pocketbase.exe
 *.db-wal
 backups/
 deploy/data/
+
+# Local tool and editor files
+.claude/settings.local.json
+*.tsbuildinfo
+*.log
+.DS_Store
+Thumbs.db

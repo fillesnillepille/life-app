@@ -25,7 +25,8 @@ Run these from `service/`:
 - Don't send personal data to cloud AI beyond what a request needs.
 - The app suggests and the user approves. Don't add actions that run without approval unless the user asks.
 - Keep the Tailscale-only access model: no forwarded ports, no public exposure.
-- Pin the PocketBase version in `scripts/setup-pocketbase.ps1`, and read the release notes before upgrading.
+- Pin the PocketBase version in `scripts/setup-pocketbase.ps1` and `deploy/pocketbase.Dockerfile`, keep the two the same, and read the release notes before upgrading.
+- Deployment is Docker Compose on the app VM (`deploy/`). See the README for the steps.
 
 ## UI
 

@@ -1,11 +1,12 @@
 import type { ReactNode } from 'react'
 import { LogOut } from 'lucide-react'
+import { Link, NavLink, useLocation } from 'react-router'
 import { signOut } from '@/lib/auth'
 import {
   allSections,
   bottomBarSections,
   moreSectionIds,
-  type SectionId,
+  sectionIdFromPath,
 } from '@/lib/sections'
 import { cn } from '@/lib/utils'
 import {
@@ -13,14 +14,10 @@ import {
   type PocketBaseStatus,
 } from '@/lib/use-pocketbase-status'
 
-type AppShellProps = {
-  section: SectionId
-  onNavigate: (section: SectionId) => void
-  children: ReactNode
-}
-
-export function AppShell({ section, onNavigate, children }: AppShellProps) {
+export function AppShell({ children }: { children: ReactNode }) {
   const { status, retry } = usePocketBaseStatus()
+  const { pathname } = useLocation()
+  const section = sectionIdFromPath(pathname)
 
   return (
     <div className="min-h-svh lg:grid lg:grid-cols-[13rem_1fr]">
@@ -30,20 +27,19 @@ export function AppShell({ section, onNavigate, children }: AppShellProps) {
         </p>
         <nav aria-label="Sektioner" className="flex-1 p-2">
           {allSections.map((item) => (
-            <button
+            <NavLink
               key={item.id}
-              type="button"
-              aria-current={section === item.id ? 'page' : undefined}
-              onClick={() => onNavigate(item.id)}
-              className={cn(
-                'flex w-full items-center gap-3 border-l-2 border-transparent px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground',
-                section === item.id &&
-                  'border-primary bg-sidebar-accent text-foreground',
-              )}
+              to={item.path}
+              className={({ isActive }) =>
+                cn(
+                  'flex w-full items-center gap-3 border-l-2 border-transparent px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground',
+                  isActive && 'border-primary bg-sidebar-accent text-foreground',
+                )
+              }
             >
               <item.icon className="size-4" aria-hidden />
               {item.label}
-            </button>
+            </NavLink>
           ))}
         </nav>
         <div className="space-y-3 border-t p-4">
@@ -72,16 +68,16 @@ export function AppShell({ section, onNavigate, children }: AppShellProps) {
         className="fixed inset-x-0 bottom-0 z-10 grid grid-cols-5 border-t bg-sidebar pb-[env(safe-area-inset-bottom)] lg:hidden"
       >
         {bottomBarSections.map((item) => {
+          // "Mer" also counts as active on the sections it leads to.
           const active =
             item.id === 'more'
-              ? moreSectionIds.includes(section)
+              ? section !== undefined && moreSectionIds.includes(section)
               : section === item.id
           return (
-            <button
+            <Link
               key={item.id}
-              type="button"
+              to={item.path}
               aria-current={active ? 'page' : undefined}
-              onClick={() => onNavigate(item.id)}
               className={cn(
                 'flex min-h-14 flex-col items-center justify-center gap-1 border-t-2 border-transparent text-[11px] text-muted-foreground',
                 active && 'border-primary text-primary',
@@ -89,7 +85,7 @@ export function AppShell({ section, onNavigate, children }: AppShellProps) {
             >
               <item.icon className="size-5" aria-hidden />
               {item.label}
-            </button>
+            </Link>
           )
         })}
       </nav>

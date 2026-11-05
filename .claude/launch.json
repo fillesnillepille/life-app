@@ -2,6 +2,18 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "pocketbase",
+      "runtimeExecutable": "pocketbase/pocketbase.exe",
+      "runtimeArgs": ["serve", "--dir", "pocketbase/pb_data", "--migrationsDir", "pocketbase/pb_migrations"],
+      "port": 8090
+    },
+    {
+      "name": "service",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "service"],
+      "port": 8787
+    },
+    {
       "name": "web",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--prefix", "web", "--", "--port", "5180", "--strictPort"],
