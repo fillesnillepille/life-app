@@ -1,6 +1,9 @@
 node_modules/
 dist/
 
+# Local link to .agents/skills/shadcn, so the skill isn't tracked twice
+.claude/skills/
+
 # Credentials and personal data must never be committed
 .env
 .env.*

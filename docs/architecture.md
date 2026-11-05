@@ -4,16 +4,15 @@ A private, self-hosted app for one person. It brings time and tasks, health, mon
 
 ## Decisions
 
-| Area | Decision |
-|---|---|
-| Web app | Vite, React, and TypeScript, installable on a phone as a PWA |
-| Data, login, realtime | PocketBase, which can also serve the built web app |
-| Integrations | A separate TypeScript service on Node, which holds all credentials and runs scheduled jobs |
-| Home control | Home Assistant is the source of truth for devices and their history |
-| AI | Cloud AI (Claude), receiving only the data each request needs |
-| Hosting | The user's own hardware |
-| Remote access | Tailscale only, with no ports forwarded and no Tailscale Funnel |
-| Disk encryption | None, by choice: the server stays at home |
+| Area                  | Decision                                                                                   |
+| --------------------- | ------------------------------------------------------------------------------------------ |
+| Web app               | Vite, React, and TypeScript, installable on a phone as a PWA                               |
+| Data, login, realtime | PocketBase, which can also serve the built web app                                         |
+| Integrations          | A separate TypeScript service on Node, which holds all credentials and runs scheduled jobs |
+| Home control          | Home Assistant is the source of truth for devices and their history                        |
+| AI                    | Cloud AI (Claude), receiving only the data each request needs                              |
+| Hosting               | The user's own hardware                                                                    |
+| Remote access         | Tailscale only, with no ports forwarded and no Tailscale Funnel                            |
 
 ```text
 Phone / computer (over Tailscale when away)
@@ -52,15 +51,23 @@ Tapping a light control directly counts as approval, so it needs no extra step.
 
 An HP ProBook 440 G6 (16 GB RAM, 4 cores, 256 GB SSD) running Proxmox.
 
-| Service | Address | Notes |
-|---|---|---|
-| Proxmox | `https://192.168.1.10:8006` | Also the Tailscale subnet router for .10, .11, and .12 |
-| Home Assistant (VM 100) | `http://192.168.1.11` | Uses port 80, not the usual 8123 |
-| App (VM 101) | `192.168.1.12` | Debian 13 with Docker, SSH as user `app` |
+| Service                 | Address                     | Notes                                                  |
+| ----------------------- | --------------------------- | ------------------------------------------------------ |
+| Proxmox                 | `https://192.168.1.10:8006` | Also the Tailscale subnet router for .10, .11, and .12 |
+| Home Assistant (VM 100) | `http://192.168.1.11`       | Uses port 80, not the usual 8123                       |
+| App (VM 101)            | `192.168.1.12`              | Debian 13 with Docker, SSH as user `app`               |
 
 The router's DHCP pool is 192.168.1.64-253, and it has no reservation option, so these addresses are set statically below that range.
 
 PWA installs and phone notifications need HTTPS, which Tailscale can provide with a private address and a trusted certificate when the first version is deployed.
+
+## Design
+
+- A dense, technical, terminal-style command center. Dark mode only.
+- shadcn/ui Lyra style with square corners, Geist Mono, and orange as the accent and chart color.
+- The app opens on a Today overview with approvals first.
+- Navigation is a bottom bar on phones and a sidebar on computers.
+- The current Today screen is a prototype using sample data. Nothing on it is connected yet, except the database status.
 
 ## Lighting
 
