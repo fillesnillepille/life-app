@@ -1,0 +1,12 @@
+node_modules/
+dist/
+
+# Credentials and personal data must never be committed
+.env
+.env.*
+!.env.example
+pb_data/
+*.db
+*.db-shm
+*.db-wal
+backups/
