@@ -1,8 +1,16 @@
 import { ImapFlow } from 'imapflow'
 import { simpleParser } from 'mailparser'
-import type { MailMessage, MailSource } from './types.ts'
+import {
+  MailUnavailableError,
+  type MailBody,
+  type MailMessage,
+  type MailSource,
+} from './types.ts'
 
 const SNIPPET_LENGTH = 400
+// A whole message is read when it is opened. Larger ones are cut off, which
+// mostly means attachments.
+const MESSAGE_BYTES = 3_000_000
 // Enough to cover the headers and the start of the text without downloading
 // attachments.
 const SOURCE_BYTES = 40_000
@@ -121,9 +129,79 @@ export function createGmailSource(options: {
     }
   }
 
+  // Runs something on the inbox, if the mailbox is the same one the app listed.
+  // Returns null if it has been reset since, so the message can't be the one
+  // the caller means.
+  async function withMessage<T>(
+    uidValidity: number,
+    run: (active: ImapFlow) => Promise<T>,
+  ): Promise<T | null> {
+    const active = client
+    if (!active?.usable) throw new MailUnavailableError()
+    const lock = await active.getMailboxLock('INBOX')
+    try {
+      if (Number(active.mailbox ? active.mailbox.uidValidity : 0) !== uidValidity) {
+        return null
+      }
+      return await run(active)
+    } finally {
+      lock.release()
+    }
+  }
+
+  let trashPath: string | undefined
+
   return {
     onChange(listener) {
       listeners.push(listener)
+    },
+
+    async read(uidValidity, uid) {
+      return withMessage(uidValidity, async (active) => {
+        const message = await active.fetchOne(
+          String(uid),
+          { uid: true, source: { maxLength: MESSAGE_BYTES } },
+          { uid: true },
+        )
+        if (!message || !message.source) return null
+        const parsed = await simpleParser(message.source)
+        const from = parsed.from?.value[0]
+        return {
+          subject: parsed.subject ?? '',
+          fromName: from?.name ?? '',
+          fromAddress: from?.address ?? '',
+          date: (parsed.date ?? new Date()).toISOString(),
+          text: (parsed.text ?? '').trim(),
+          html: typeof parsed.html === 'string' ? parsed.html : null,
+          attachments: parsed.attachments.map((attachment) => ({
+            filename: attachment.filename ?? 'bilaga',
+            size: attachment.size,
+          })),
+          // Hitting the limit means the end of the message was left unread.
+          truncated: message.source.length >= MESSAGE_BYTES,
+        } satisfies MailBody
+      })
+    },
+
+    async markSeen(uidValidity, uid) {
+      const done = await withMessage(uidValidity, (active) =>
+        active.messageFlagsAdd(String(uid), ['\\Seen'], { uid: true }),
+      )
+      return done === true
+    },
+
+    async trash(uidValidity, uid) {
+      const done = await withMessage(uidValidity, async (active) => {
+        // The Trash folder's name depends on the account's language.
+        trashPath ??=
+          (await active.list()).find((box) => box.specialUse === '\\Trash')
+            ?.path ?? '[Gmail]/Trash'
+        const moved = await active.messageMove(String(uid), trashPath, {
+          uid: true,
+        })
+        return moved !== false
+      })
+      return done === true
     },
 
     async start() {
@@ -146,7 +224,7 @@ export function createGmailSource(options: {
 
     async fetchInbox() {
       const active = client
-      if (!active?.usable) throw new Error('Not connected to Gmail')
+      if (!active?.usable) throw new MailUnavailableError()
 
       const lock = await active.getMailboxLock('INBOX')
       try {

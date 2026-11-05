@@ -4,7 +4,7 @@ import { createTokenVerifier } from './auth.ts'
 import { createHomeAssistant } from './home-assistant.ts'
 import { createGmailSource } from './mail/gmail-source.ts'
 import { createPocketBaseMailStore } from './mail/pocketbase-store.ts'
-import { createMailSync, notConfigured } from './mail/sync.ts'
+import { createMailSync, noMail } from './mail/sync.ts'
 
 const {
   HOME_ASSISTANT_URL,
@@ -42,7 +42,7 @@ const mailSync =
 const app = createApp(
   createHomeAssistant({ url: HOME_ASSISTANT_URL, token: HOME_ASSISTANT_TOKEN }),
   createTokenVerifier(POCKETBASE_URL),
-  mailSync ?? { status: () => notConfigured },
+  mailSync ?? noMail,
 )
 
 serve({ fetch: app.fetch, hostname: HOST, port: Number(PORT) }, (info) => {

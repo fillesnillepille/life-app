@@ -5,6 +5,7 @@ export type Bucket =
   | 'bookings'
   | 'newsletters'
   | 'promotions'
+  | 'codes'
   | 'other'
 
 // A message as read from the mailbox, before it is sorted.
@@ -60,9 +61,52 @@ export type MailStatus = {
   error: string | null
 }
 
+// A whole message, fetched when it is opened. It is passed on to the browser
+// and never stored.
+export type MailBody = {
+  subject: string
+  fromName: string
+  fromAddress: string
+  date: string
+  text: string
+  // The original HTML, which the app must sanitize before showing. Null when
+  // the message has none.
+  html: string | null
+  attachments: Array<{ filename: string; size: number }>
+  // True when the message was too large to read in full.
+  truncated: boolean
+}
+
+// Raised when there is no connection to the mailbox right now.
+export class MailUnavailableError extends Error {
+  constructor() {
+    super('mail_unavailable')
+  }
+}
+
+// Raised when no mailbox is set up at all.
+export class MailNotConfiguredError extends Error {
+  constructor() {
+    super('mail_not_configured')
+  }
+}
+
+// What the HTTP routes use. Message functions return null or false when the
+// message is gone, or when the mailbox has been reset since it was listed.
+export interface MailService {
+  status(): MailStatus
+  read(uidValidity: number, uid: number): Promise<MailBody | null>
+  markSeen(uidValidity: number, uid: number): Promise<boolean>
+  // Moves the message to Gmail's Trash, which Gmail empties after 30 days.
+  trash(uidValidity: number, uid: number): Promise<boolean>
+}
+
 // Where messages come from. The Gmail connection implements this, and so does
 // the fake used in tests.
 export interface MailSource {
+  read(uidValidity: number, uid: number): Promise<MailBody | null>
+  markSeen(uidValidity: number, uid: number): Promise<boolean>
+  trash(uidValidity: number, uid: number): Promise<boolean>
   // The messages currently in the inbox, newest first.
   fetchInbox(): Promise<MailMessage[]>
   // Calls back when the inbox may have changed.

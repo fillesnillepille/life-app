@@ -5,10 +5,13 @@ export type Bucket =
   | 'bookings'
   | 'newsletters'
   | 'promotions'
+  | 'codes'
   | 'other'
 
 export type Mail = {
   id: string
+  uid: number
+  uidValidity: number
   messageId: string
   threadId: string
   fromAddress: string
@@ -35,6 +38,7 @@ export const bucketLabels: Record<Bucket, string> = {
   deliveries: 'Leveranser',
   bookings: 'Bokningar',
   other: 'Övrigt',
+  codes: 'Koder',
   newsletters: 'Nyhetsbrev',
   promotions: 'Reklam',
 }
@@ -46,6 +50,7 @@ export const bucketOrder: Bucket[] = [
   'deliveries',
   'bookings',
   'other',
+  'codes',
   'newsletters',
   'promotions',
 ]
@@ -57,6 +62,23 @@ export const actionBuckets: Bucket[] = [
   'deliveries',
   'bookings',
 ]
+
+// A whole message, fetched from Gmail through the service when it is opened.
+export type MailBody = {
+  subject: string
+  fromName: string
+  fromAddress: string
+  date: string
+  text: string
+  html: string | null
+  attachments: Array<{ filename: string; size: number }>
+  truncated: boolean
+}
+
+// Where a message is opened in the app.
+export function mailPath(mail: Pick<Mail, 'uidValidity' | 'uid'>) {
+  return `/mejl/${mail.uidValidity}/${mail.uid}`
+}
 
 // PocketBase writes dates as "2026-11-05 21:24:52.883Z"; Safari needs the "T".
 export function parseDate(value: string) {

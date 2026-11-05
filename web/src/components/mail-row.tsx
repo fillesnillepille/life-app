@@ -1,33 +1,28 @@
-import { ExternalLink } from 'lucide-react'
-import {
-  formatMailDate,
-  gmailLink,
-  senderName,
-  type Mail,
-} from '@/lib/mail'
+import { Trash2 } from 'lucide-react'
+import { Link } from 'react-router'
+import { Button } from '@/components/ui/button'
+import { formatMailDate, mailPath, senderName, type Mail } from '@/lib/mail'
 import { cn } from '@/lib/utils'
 
-// One message in a list. It links to the message in Gmail, since reading and
-// replying happen there.
+// One message in a list. It opens the message in the app, and can have a
+// delete button beside it.
 export function MailRow({
   mail,
-  account,
   showSnippet = true,
   tag,
+  onDelete,
 }: {
   mail: Mail
-  account: string | null
   showSnippet?: boolean
-  // A small label before the sender, used where buckets are mixed.
+  // A small label above the sender, used where buckets are mixed.
   tag?: string
+  onDelete?: (mail: Mail) => void
 }) {
   return (
-    <li>
-      <a
-        href={gmailLink(mail, account)}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex min-h-11 items-start gap-3 px-3 py-2 text-sm hover:bg-accent"
+    <li className="flex items-center pr-1">
+      <Link
+        to={mailPath(mail)}
+        className="flex min-h-11 min-w-0 flex-1 items-start gap-3 px-3 py-2 text-sm hover:bg-accent"
       >
         {mail.seen ? (
           <span className="mt-1.5 size-2 shrink-0" aria-hidden />
@@ -64,12 +59,18 @@ export function MailRow({
             </span>
           )}
         </span>
-        <ExternalLink
-          className="mt-1 size-3.5 shrink-0 text-muted-foreground"
-          aria-hidden
-        />
-        <span className="sr-only">Öppnas i Gmail</span>
-      </a>
+      </Link>
+      {onDelete && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-11 shrink-0 text-muted-foreground lg:size-8"
+          aria-label={`Ta bort ${mail.subject || 'mejlet'}`}
+          onClick={() => onDelete(mail)}
+        >
+          <Trash2 aria-hidden />
+        </Button>
+      )}
     </li>
   )
 }

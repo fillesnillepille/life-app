@@ -1,11 +1,16 @@
 import { Hono } from 'hono'
 import type { TokenVerifier } from './auth.ts'
 import { HomeAssistantError, type HomeAssistant } from './home-assistant.ts'
-import { notConfigured } from './mail/sync.ts'
-import type { MailStatus } from './mail/types.ts'
+import { noMail } from './mail/sync.ts'
+import {
+  MailNotConfiguredError,
+  MailUnavailableError,
+  type MailService,
+} from './mail/types.ts'
 
 const LIGHT_ID = /^light\.[a-z0-9_]+$/
 const SCENE_ID = /^scene\.[a-z0-9_]+$/
+const NUMBER = /^\d{1,15}$/
 
 const errorStatus = {
   ha_not_configured: 503,
@@ -34,13 +39,19 @@ function parseLightChange(body: unknown) {
 export function createApp(
   homeAssistant: HomeAssistant,
   verifyToken: TokenVerifier,
-  mail: { status: () => MailStatus } = { status: () => notConfigured },
+  mail: MailService = noMail,
 ) {
   const app = new Hono()
 
   app.onError((error, c) => {
     if (error instanceof HomeAssistantError) {
       return c.json({ error: error.code }, errorStatus[error.code])
+    }
+    if (
+      error instanceof MailUnavailableError ||
+      error instanceof MailNotConfiguredError
+    ) {
+      return c.json({ error: error.message }, 503)
     }
     console.error('Unexpected error:', error.message)
     return c.json({ error: 'internal_error' }, 500)
@@ -60,6 +71,39 @@ export function createApp(
   })
 
   app.get('/mail/status', (c) => c.json(mail.status()))
+
+  // A message is named by the mailbox's validity number and its UID, the same
+  // pair the app stores. If the mailbox was reset since, the pair no longer
+  // matches anything and the message counts as gone.
+  const messageRef = (c: { req: { param: (name: string) => string } }) => {
+    const validity = c.req.param('uidValidity')
+    const uid = c.req.param('uid')
+    if (!NUMBER.test(validity) || !NUMBER.test(uid)) return null
+    return { validity: Number(validity), uid: Number(uid) }
+  }
+
+  app.get('/mail/messages/:uidValidity/:uid', async (c) => {
+    const ref = messageRef(c)
+    if (!ref) return c.json({ error: 'invalid_request' }, 400)
+    const body = await mail.read(ref.validity, ref.uid)
+    return body ? c.json(body) : c.json({ error: 'mail_not_found' }, 404)
+  })
+
+  app.post('/mail/messages/:uidValidity/:uid/seen', async (c) => {
+    const ref = messageRef(c)
+    if (!ref) return c.json({ error: 'invalid_request' }, 400)
+    return (await mail.markSeen(ref.validity, ref.uid))
+      ? c.body(null, 204)
+      : c.json({ error: 'mail_not_found' }, 404)
+  })
+
+  app.post('/mail/messages/:uidValidity/:uid/trash', async (c) => {
+    const ref = messageRef(c)
+    if (!ref) return c.json({ error: 'invalid_request' }, 400)
+    return (await mail.trash(ref.validity, ref.uid))
+      ? c.body(null, 204)
+      : c.json({ error: 'mail_not_found' }, 404)
+  })
 
   app.get('/lights', async (c) =>
     c.json(await homeAssistant.listLightsAndScenes()),

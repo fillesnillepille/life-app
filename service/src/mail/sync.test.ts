@@ -38,6 +38,41 @@ function fakeSource(initial: MailMessage[]) {
     fail: false,
   }
   const source: MailSource = {
+    async read(uidValidity, uid) {
+      const found = state.inbox.find(
+        (m) => m.uidValidity === uidValidity && m.uid === uid,
+      )
+      return found
+        ? {
+            subject: found.subject,
+            fromName: found.fromName,
+            fromAddress: found.fromAddress,
+            date: found.date,
+            text: found.body,
+            html: null,
+            attachments: [],
+            truncated: false,
+          }
+        : null
+    },
+    async markSeen(uidValidity, uid) {
+      const found = state.inbox.some(
+        (m) => m.uidValidity === uidValidity && m.uid === uid,
+      )
+      state.inbox = state.inbox.map((m) =>
+        m.uid === uid && m.uidValidity === uidValidity ? { ...m, seen: true } : m,
+      )
+      return found
+    },
+    async trash(uidValidity, uid) {
+      const found = state.inbox.some(
+        (m) => m.uidValidity === uidValidity && m.uid === uid,
+      )
+      state.inbox = state.inbox.filter(
+        (m) => !(m.uid === uid && m.uidValidity === uidValidity),
+      )
+      return found
+    },
     async fetchInbox() {
       if (state.fail) throw new Error('imap down')
       return state.inbox
@@ -191,9 +226,45 @@ describe('mail sync', () => {
     assert.equal(rows.size, 2)
   })
 
+  it('removes a trashed message from the stored inbox right away', async () => {
+    const { sync, rows } = setup([message(1), message(2)])
+    await sync.syncOnce()
+    assert.equal(await sync.trash(1, 1), true)
+    // The refresh runs in the background, so give it a moment.
+    await new Promise((resolve) => setTimeout(resolve, 30))
+    assert.deepEqual([...rows.values()].map((r) => r.uid), [2])
+  })
+
+  it('marks a message as read in the stored inbox', async () => {
+    const { sync, rows } = setup([message(1)])
+    await sync.syncOnce()
+    assert.equal(await sync.markSeen(1, 1), true)
+    await new Promise((resolve) => setTimeout(resolve, 30))
+    assert.equal([...rows.values()][0].seen, true)
+  })
+
+  it('does not refresh when the message was not found', async () => {
+    const { sync, log } = setup([message(1)])
+    await sync.syncOnce()
+    log.length = 0
+    assert.equal(await sync.trash(1, 99), false)
+    assert.equal(await sync.markSeen(2, 1), false)
+    await new Promise((resolve) => setTimeout(resolve, 30))
+    assert.deepEqual(log, [])
+  })
+
+  it('reads a whole message from the mailbox', async () => {
+    const { sync } = setup([message(1, { body: 'Hela texten' })])
+    assert.equal((await sync.read(1, 1))?.text, 'Hela texten')
+    assert.equal(await sync.read(1, 2), null)
+  })
+
   it('reports an error status if the connection cannot start', async () => {
     const failing = createMailSync({
       source: {
+        read: async () => null,
+        markSeen: async () => false,
+        trash: async () => false,
         async fetchInbox() {
           throw new Error('login failed')
         },

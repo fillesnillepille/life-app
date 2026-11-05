@@ -3,16 +3,20 @@ import type { Bucket, MailMessage, MailRecord } from './types.ts'
 // Rules that sort mail without any AI. Each list is plain data, so it is easy
 // to extend. Matching is case-insensitive.
 
-// Mail that must never be stored beyond its header or sent to any AI: login
-// codes, password resets, and mail from banks and public authorities.
-const SENSITIVE_SUBJECT = [
+// One-time codes, login links, and password resets. They go in their own
+// bucket, "Koder", and are sensitive: no snippet is kept, and they must never
+// be sent to any AI.
+const CODE_SUBJECT = [
   'engångskod',
   'engångslösenord',
   'verifieringskod',
   'säkerhetskod',
   'bekräftelsekod',
+  'inloggningskod',
   'verification code',
   'security code',
+  'login code',
+  'sign-in code',
   'one-time',
   'your code',
   'din kod',
@@ -20,8 +24,13 @@ const SENSITIVE_SUBJECT = [
   'nytt lösenord',
   'reset your password',
   'password reset',
+  'verify your email',
+  'bekräfta din e-post',
   'bankid',
 ]
+
+// Mail from banks and public authorities is sensitive too, but sorted like
+// any other mail.
 const SENSITIVE_SENDER = [
   'swedbank',
   'handelsbanken',
@@ -131,11 +140,14 @@ export function classify(message: MailMessage): Classification {
   const automated =
     bulk || message.headers.autoSubmitted || NO_REPLY.test(message.fromAddress.toLowerCase())
 
-  const sensitive =
-    includesAny(subject, SENSITIVE_SUBJECT) ||
-    includesAny(sender, SENSITIVE_SENDER)
+  const isCode = includesAny(subject, CODE_SUBJECT)
+  const sensitive = isCode || includesAny(sender, SENSITIVE_SENDER)
 
   const pick = (bucket: Bucket): Classification => ({ bucket, sensitive, bulk })
+
+  // Codes first: a login code is never an invoice or a newsletter, even from a
+  // sender that sends those too.
+  if (isCode) return pick('codes')
 
   // Bulk mail with sales language is advertising, whatever else it mentions.
   if (bulk && includesAny(subject, PROMOTION)) return pick('promotions')

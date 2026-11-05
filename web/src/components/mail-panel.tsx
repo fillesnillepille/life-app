@@ -60,7 +60,6 @@ export function MailPanel() {
             <MailRow
               key={mail.id}
               mail={mail}
-              account={status?.account ?? null}
               showSnippet={false}
               tag={bucketLabels[mail.bucket]}
             />

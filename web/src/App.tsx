@@ -1,6 +1,7 @@
-import { useEffect } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { Navigate, Route, Routes } from 'react-router'
 import { AppShell } from '@/components/app-shell'
+import { Loading } from '@/components/load-status'
 import { refreshSession, useIsSignedIn } from '@/lib/auth'
 import { allSections } from '@/lib/sections'
 import { getStartPage, startPagePaths } from '@/lib/start-page'
@@ -11,6 +12,14 @@ import { MorePage } from '@/pages/more-page'
 import { PlaceholderPage } from '@/pages/placeholder-page'
 import { TasksPage } from '@/pages/tasks-page'
 import { TodayPage } from '@/pages/today-page'
+
+// Reading a message needs the HTML cleaner, which is a large library, so that
+// page is only downloaded when a message is opened.
+const MailMessagePage = lazy(() =>
+  import('@/pages/mail-message-page').then((module) => ({
+    default: module.MailMessagePage,
+  })),
+)
 
 // Sections with a real page. The rest show a placeholder until they're built.
 const pages: Record<string, React.ReactNode> = {
@@ -35,6 +44,14 @@ function SignedInApp() {
             element={pages[item.id] ?? <PlaceholderPage title={item.label} />}
           />
         ))}
+        <Route
+          path="/mejl/:uidValidity/:uid"
+          element={
+            <Suspense fallback={<Loading>Hämtar mejlet…</Loading>}>
+              <MailMessagePage />
+            </Suspense>
+          }
+        />
         <Route path="/mer" element={<MorePage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

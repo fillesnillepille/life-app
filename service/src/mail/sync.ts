@@ -1,9 +1,11 @@
 import { toRecord } from './classify.ts'
-import type {
-  MailRecord,
-  MailSource,
-  MailStatus,
-  MailStore,
+import {
+  MailNotConfiguredError,
+  type MailRecord,
+  type MailService,
+  type MailSource,
+  type MailStatus,
+  type MailStore,
 } from './types.ts'
 
 const REFRESH_MS = 5 * 60_000
@@ -105,9 +107,24 @@ export function createMailSync(options: {
     }
   }
 
+  // After a change we made ourselves, bring the stored copy up to date in the
+  // background instead of waiting for Gmail to report it.
+  const refreshSoon = () => void syncOnce()
+
   return {
     status: () => status,
     syncOnce,
+    read: (uidValidity: number, uid: number) => source.read(uidValidity, uid),
+    async markSeen(uidValidity: number, uid: number) {
+      const done = await source.markSeen(uidValidity, uid)
+      if (done) refreshSoon()
+      return done
+    },
+    async trash(uidValidity: number, uid: number) {
+      const done = await source.trash(uidValidity, uid)
+      if (done) refreshSoon()
+      return done
+    },
     async start() {
       source.onChange(() => {
         // Several changes often come in a burst, so wait a moment.
@@ -146,4 +163,19 @@ export const notConfigured: MailStatus = {
   lastSync: null,
   count: 0,
   error: null,
+}
+
+// The mail service used when no mailbox is set up: the status says so, and
+// every message function reports that there is nothing to work with.
+export const noMail: MailService = {
+  status: () => notConfigured,
+  async read() {
+    throw new MailNotConfiguredError()
+  },
+  async markSeen() {
+    throw new MailNotConfiguredError()
+  },
+  async trash() {
+    throw new MailNotConfiguredError()
+  },
 }

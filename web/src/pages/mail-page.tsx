@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Loading, LoadError } from '@/components/load-status'
 import { MailRow } from '@/components/mail-row'
 import { Panel } from '@/components/panel'
+import { TrashMailDialog } from '@/components/trash-mail-dialog'
 import { Button } from '@/components/ui/button'
 import {
   bucketLabels,
@@ -15,10 +16,20 @@ import { useMails, useMailStatus } from '@/lib/use-mails'
 const SHOWN = 8
 
 export function MailPage() {
-  const { mails, loadError, retry } = useMails()
+  const { mails, loadError, actionError, retry, trash } = useMails()
   const status = useMailStatus()
   const account = status?.account ?? null
   const statusLine = describeMailStatus(status)
+
+  // The message waiting for the user to confirm. It stays set while the dialog
+  // fades out, so the text doesn't blank during the animation.
+  const [target, setTarget] = useState<Mail | null>(null)
+  const [confirmOpen, setConfirmOpen] = useState(false)
+
+  function askToTrash(mail: Mail) {
+    setTarget(mail)
+    setConfirmOpen(true)
+  }
 
   return (
     <section className="max-w-3xl space-y-4">
@@ -40,6 +51,12 @@ export function MailPage() {
         )}
       </header>
 
+      {actionError && (
+        <p className="text-sm text-destructive" role="alert">
+          {actionError}
+        </p>
+      )}
+
       {loadError && !mails && (
         <div className="rounded-xl border">
           <LoadError message={loadError} onRetry={retry} />
@@ -57,9 +74,19 @@ export function MailPage() {
             key={bucket}
             bucket={bucket}
             mails={mails.filter((mail) => mail.bucket === bucket)}
-            account={account}
+            onDelete={askToTrash}
           />
         ))}
+
+      <TrashMailDialog
+        subject={target?.subject ?? ''}
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        onConfirm={() => {
+          if (target) void trash(target)
+          setConfirmOpen(false)
+        }}
+      />
     </section>
   )
 }
@@ -67,18 +94,17 @@ export function MailPage() {
 function BucketPanel({
   bucket,
   mails,
-  account,
+  onDelete,
 }: {
   bucket: Bucket
   mails: Mail[]
-  account: string | null
+  onDelete: (mail: Mail) => void
 }) {
   const [expanded, setExpanded] = useState(false)
   if (mails.length === 0) return null
 
   const unread = mails.filter((mail) => !mail.seen).length
   const shown = expanded ? mails : mails.slice(0, SHOWN)
-  const hidden = mails.length - shown.length
 
   return (
     <Panel
@@ -90,13 +116,18 @@ function BucketPanel({
           <MailRow
             key={mail.id}
             mail={mail}
-            account={account}
-            // Ads and newsletters are for skimming, so a line is enough.
-            showSnippet={bucket !== 'promotions' && bucket !== 'newsletters'}
+            onDelete={onDelete}
+            // Ads, newsletters, and codes are for skimming, so a line is
+            // enough. Codes have no snippet at all.
+            showSnippet={
+              bucket !== 'promotions' &&
+              bucket !== 'newsletters' &&
+              bucket !== 'codes'
+            }
           />
         ))}
       </ul>
-      {(hidden > 0 || expanded) && mails.length > SHOWN && (
+      {mails.length > SHOWN && (
         <div className="border-t p-2">
           <Button
             variant="ghost"

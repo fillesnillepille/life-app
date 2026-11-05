@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { pb } from '@/lib/pocketbase'
 import type { Mail, MailStatus } from '@/lib/mail'
-import { serviceRequest } from '@/lib/service'
+import { trashMail } from '@/lib/mail-api'
+import { serviceErrorMessage, serviceRequest } from '@/lib/service'
 
 const STATUS_REFRESH_MS = 60_000
 
@@ -10,6 +11,7 @@ const STATUS_REFRESH_MS = 60_000
 export function useMails() {
   const [mails, setMails] = useState<Mail[] | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     try {
@@ -49,7 +51,24 @@ export function useMails() {
     void load()
   }, [load])
 
-  return { mails, loadError, retry }
+  // The message disappears at once and comes back if Gmail refuses.
+  const trash = useCallback(
+    async (mail: Mail) => {
+      setActionError(null)
+      setMails((current) => current?.filter((item) => item.id !== mail.id) ?? null)
+      try {
+        await trashMail(mail)
+        return true
+      } catch (error) {
+        setActionError(`Kunde inte ta bort mejlet. ${serviceErrorMessage(error)}`)
+        void load()
+        return false
+      }
+    },
+    [load],
+  )
+
+  return { mails, loadError, actionError, retry, trash }
 }
 
 // Whether the service is connected to Gmail, and when it last synced.

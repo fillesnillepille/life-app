@@ -139,6 +139,47 @@ describe('sorting into buckets', () => {
   })
 })
 
+describe('codes', () => {
+  it('puts login codes and password resets in their own bucket', () => {
+    assert.equal(bucketOf({ subject: 'Din engångskod är 482913' }), 'codes')
+    assert.equal(bucketOf({ subject: 'Reset your password' }), 'codes')
+    assert.equal(bucketOf({ subject: 'Your code is 123456' }), 'codes')
+    assert.equal(bucketOf({ subject: 'Verify your email address' }), 'codes')
+  })
+
+  it('does so even from a sender that also sends newsletters', () => {
+    assert.equal(
+      bucketOf({
+        fromAddress: 'noreply@butik.example',
+        subject: 'Din verifieringskod',
+        headers: { listUnsubscribe: true },
+      }),
+      'codes',
+    )
+  })
+
+  it('keeps no snippet for them', () => {
+    const record = toRecord(
+      message({ subject: 'Din engångskod är 482913', body: 'Koden är 482913' }),
+    )
+    assert.equal(record.bucket, 'codes')
+    assert.equal(record.sensitive, true)
+    assert.equal(record.snippet, '')
+  })
+
+  it('leaves bank mail in its normal bucket, but sensitive', () => {
+    const record = toRecord(
+      message({
+        fromAddress: 'info@swedbank.se',
+        fromName: 'Swedbank',
+        subject: 'Din faktura',
+      }),
+    )
+    assert.equal(record.bucket, 'invoices')
+    assert.equal(record.sensitive, true)
+  })
+})
+
 describe('sensitive mail', () => {
   it('flags login codes and keeps no snippet', () => {
     const record = toRecord(

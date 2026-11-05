@@ -16,6 +16,7 @@
     "@tailwindcss/vite": "^4.3.4",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.5.2",
+    "dompurify": "^3.4.17",
     "lucide-react": "^1.68.0",
     "pocketbase": "^0.28.2",
     "react": "^19.3.1",

@@ -51,6 +51,9 @@ const errorMessages: Record<string, string> = {
   not_found: 'Lampan finns inte längre.',
   auth_unavailable: 'Kan inte kontrollera inloggningen just nu.',
   service_unreachable: 'Kan inte nå tjänsten.',
+  mail_not_found: 'Mejlet finns inte längre i inkorgen.',
+  mail_unavailable: 'Kan inte nå Gmail just nu.',
+  mail_not_configured: 'Mejl är inte kopplat än.',
 }
 
 export function serviceErrorMessage(error: unknown) {

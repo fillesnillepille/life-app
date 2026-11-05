@@ -3,6 +3,8 @@ import { describe, it } from 'node:test'
 import { createApp } from './app.ts'
 import { createTokenVerifier, type TokenCheck } from './auth.ts'
 import { createHomeAssistant } from './home-assistant.ts'
+import { noMail } from './mail/sync.ts'
+import { MailUnavailableError, type MailService } from './mail/types.ts'
 
 const HA_TOKEN = 'ha-secret-token'
 const states = [
@@ -328,8 +330,110 @@ describe('mail status', () => {
       count: 12,
       error: null,
     }
-    const app = createApp(homeAssistant, async () => 'valid', { status: () => status })
+    const app = createApp(homeAssistant, async () => 'valid', {
+      ...noMail,
+      status: () => status,
+    })
     const response = await app.request('/mail/status', authorized())
     assert.deepEqual(await response.json(), status)
+  })
+})
+
+describe('mail messages', () => {
+  const haFetch = (async () => Response.json([])) as typeof fetch
+  const body = {
+    subject: 'Hej',
+    fromName: 'Anna',
+    fromAddress: 'anna@example.test',
+    date: '2026-11-05T10:00:00.000Z',
+    text: 'Hela texten',
+    html: '<p>Hela texten</p>',
+    attachments: [{ filename: 'a.pdf', size: 10 }],
+    truncated: false,
+  }
+
+  function mailApp(overrides: Partial<MailService> = {}) {
+    const calls: string[] = []
+    const mail: MailService = {
+      status: noMail.status,
+      async read(validity, uid) {
+        calls.push(`read ${validity}:${uid}`)
+        return validity === 7 && uid === 1 ? body : null
+      },
+      async markSeen(validity, uid) {
+        calls.push(`seen ${validity}:${uid}`)
+        return validity === 7 && uid === 1
+      },
+      async trash(validity, uid) {
+        calls.push(`trash ${validity}:${uid}`)
+        return validity === 7 && uid === 1
+      },
+      ...overrides,
+    }
+    const homeAssistant = createHomeAssistant({ url: 'http://ha.test', token: 'x', fetch: haFetch })
+    return { app: createApp(homeAssistant, async () => 'valid', mail), calls }
+  }
+
+  it('returns a whole message', async () => {
+    const { app } = mailApp()
+    const response = await app.request('/mail/messages/7/1', authorized())
+    assert.equal(response.status, 200)
+    assert.deepEqual(await response.json(), body)
+  })
+
+  it('answers 404 for a message that is gone', async () => {
+    const { app } = mailApp()
+    const response = await app.request('/mail/messages/7/99', authorized())
+    assert.equal(response.status, 404)
+    assert.deepEqual(await response.json(), { error: 'mail_not_found' })
+  })
+
+  it('marks a message as read and moves it to the trash', async () => {
+    const { app, calls } = mailApp()
+    assert.equal((await app.request('/mail/messages/7/1/seen', authorized({ method: 'POST' }))).status, 204)
+    assert.equal((await app.request('/mail/messages/7/1/trash', authorized({ method: 'POST' }))).status, 204)
+    assert.deepEqual(calls, ['seen 7:1', 'trash 7:1'])
+  })
+
+  it('answers 404 when trashing something that is gone', async () => {
+    const { app } = mailApp()
+    const response = await app.request('/mail/messages/7/99/trash', authorized({ method: 'POST' }))
+    assert.equal(response.status, 404)
+  })
+
+  it('rejects ids that are not plain numbers, without asking the mailbox', async () => {
+    const { app, calls } = mailApp()
+    for (const path of ['/mail/messages/7/abc', '/mail/messages/x/1', '/mail/messages/7/1%20OR%201/trash']) {
+      const response = await app.request(path, authorized({ method: path.endsWith('trash') ? 'POST' : 'GET' }))
+      assert.equal(response.status, 400, path)
+    }
+    assert.deepEqual(calls, [])
+  })
+
+  it('requires a signed-in user for every message route', async () => {
+    const homeAssistant = createHomeAssistant({ url: 'http://ha.test', token: 'x', fetch: haFetch })
+    const app = createApp(homeAssistant, async () => 'invalid', noMail)
+    for (const [method, path] of [['GET', '/mail/messages/7/1'], ['POST', '/mail/messages/7/1/seen'], ['POST', '/mail/messages/7/1/trash']] as const) {
+      const response = await app.request(path, { method, headers: { Authorization: 'Bearer nope' } })
+      assert.equal(response.status, 401, path)
+    }
+  })
+
+  it('says so when the mailbox is unreachable', async () => {
+    const { app } = mailApp({
+      async read() {
+        throw new MailUnavailableError()
+      },
+    })
+    const response = await app.request('/mail/messages/7/1', authorized())
+    assert.equal(response.status, 503)
+    assert.deepEqual(await response.json(), { error: 'mail_unavailable' })
+  })
+
+  it('says so when no mailbox is set up', async () => {
+    const { app } = setup()
+    const response = await app.request('/mail/messages/7/1', authorized())
+    assert.equal(response.status, 503)
+    assert.deepEqual(await response.json(), { error: 'mail_not_configured' })
   })
 })
