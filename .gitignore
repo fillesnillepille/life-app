@@ -6,6 +6,7 @@ dist/
 .env.*
 !.env.example
 pb_data/
+pocketbase/pocketbase.exe
 *.db
 *.db-shm
 *.db-wal
