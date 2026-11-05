@@ -14,3 +14,4 @@ pocketbase/pocketbase.exe
 *.db-shm
 *.db-wal
 backups/
+deploy/data/

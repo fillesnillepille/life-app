@@ -1,0 +1,18 @@
+# One address for everything, so the browser needs no CORS rules.
+# HTTPS is added in front of this by `tailscale serve` on the VM.
+:80 {
+	handle /api/* {
+		reverse_proxy pocketbase:8090
+	}
+	handle /_/* {
+		reverse_proxy pocketbase:8090
+	}
+	handle_path /service/* {
+		reverse_proxy service:8787
+	}
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}

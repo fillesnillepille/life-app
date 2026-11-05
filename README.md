@@ -35,3 +35,26 @@ npm run dev --prefix web
 The web app reaches the service through Vite's `/service` proxy.
 
 Vite prints the address it's using, which is normally `http://localhost:5173`.
+
+## Deploy to the app VM
+
+The VM (`192.168.1.12`, Debian with Docker) runs three containers from `deploy/docker-compose.yml`: PocketBase, the service, and Caddy, which serves the built web app and proxies `/api`, `/_`, and `/service` on one address. Caddy listens only on the VM's `127.0.0.1:8080`. `tailscale serve` adds HTTPS and keeps it Tailscale-only.
+
+1. Copy the repository to the VM, without `service/.env` and `pocketbase/pb_data`. For example, `git clone` on the VM once the code is pushed.
+2. On the VM, create `service/.env` from `service/.env.example` and set `HOME_ASSISTANT_TOKEN`. The compose file overrides the PocketBase address and host for you.
+3. Start everything from the repository root:
+
+```bash
+docker compose -f deploy/docker-compose.yml up -d --build
+```
+
+4. Put HTTPS in front of it, once:
+
+```bash
+sudo tailscale serve --bg 8080
+```
+
+5. Create your login at `https://<vm-name>.<tailnet>.ts.net/_/`. Make the PocketBase admin account first, then add a user under **Collections > users**. The VM has its own database in `deploy/data/pb_data`, so the local one doesn't carry over.
+6. On the phone, with Tailscale on, open that address and use **Add to Home screen**.
+
+To update, pull the new code and run the same `docker compose` command again.

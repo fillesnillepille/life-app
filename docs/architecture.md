@@ -63,8 +63,8 @@ PWA installs and phone notifications need HTTPS, which Tailscale can provide wit
 
 ## Design
 
-- A dense, technical, terminal-style command center. Dark mode only.
-- shadcn/ui Lyra style with square corners, Geist Mono, and orange as the accent and chart color.
+- Dark mode only, and pure black so it looks right on OLED screens: the background, cards, and sidebar are `oklch(0 0 0)`, text is white, and the accent is grayscale. Surfaces are separated by thin white borders at low opacity rather than lighter fills.
+- shadcn/ui Nova style (`base-nova`) with rounded corners and the Geist font. Apply style changes with `npx shadcn@latest apply`, and keep hand-built boxes such as `Panel` rounded to match the Card component.
 - The app opens on a Today overview with approvals first.
 - Navigation is a bottom bar on phones and a sidebar on computers.
 - The current Today screen is a prototype using sample data, except the lights panel and the database status.
