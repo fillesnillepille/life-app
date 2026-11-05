@@ -11,4 +11,12 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  server: {
+    proxy: {
+      '/service': {
+        target: process.env.SERVICE_URL ?? 'http://127.0.0.1:8787',
+        rewrite: (path) => path.replace(/^\/service/, ''),
+      },
+    },
+  },
 })

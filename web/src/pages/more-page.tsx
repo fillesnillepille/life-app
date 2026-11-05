@@ -10,7 +10,7 @@ export function MorePage({
   return (
     <section className="space-y-4">
       <h1 className="text-lg font-semibold">Mer</h1>
-      <div className="divide-y border">
+      <div className="divide-y overflow-hidden rounded-xl border">
         {allSections.slice(4).map((item) => (
           <button
             key={item.id}
@@ -27,7 +27,7 @@ export function MorePage({
       <button
         type="button"
         onClick={signOut}
-        className="flex min-h-12 w-full items-center gap-3 border px-3 text-left text-sm hover:bg-accent lg:hidden"
+        className="flex min-h-12 w-full items-center gap-3 rounded-xl border px-3 text-left text-sm hover:bg-accent lg:hidden"
       >
         <LogOut className="size-4 text-muted-foreground" aria-hidden />
         Logga ut

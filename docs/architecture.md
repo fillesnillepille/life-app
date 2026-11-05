@@ -67,7 +67,13 @@ PWA installs and phone notifications need HTTPS, which Tailscale can provide wit
 - shadcn/ui Lyra style with square corners, Geist Mono, and orange as the accent and chart color.
 - The app opens on a Today overview with approvals first.
 - Navigation is a bottom bar on phones and a sidebar on computers.
-- The current Today screen is a prototype using sample data. Nothing on it is connected yet, except the database status.
+- The current Today screen is a prototype using sample data, except the lights panel and the database status.
+
+## Service
+
+- The browser never talks to Home Assistant. It calls the TypeScript service with its PocketBase token, and the service checks that token before using its own Home Assistant credentials.
+- In development, Vite proxies `/service` to the service, which listens only on 127.0.0.1. Production needs a same-origin reverse proxy, so no CORS rules are needed.
+- Lights update by polling every 5 seconds while the app is visible. Home Assistant's WebSocket API could replace this later.
 
 ## Lighting
 

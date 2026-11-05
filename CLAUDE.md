@@ -13,6 +13,12 @@ Run these from `web/`:
 - `npm run lint`: lint with oxlint
 - `npm run dev`: start the dev server. Port 5173 is often taken by another project, so use the port Vite prints.
 
+Run these from `service/`:
+
+- `npm test`: run the tests
+- `npm run typecheck`: type-check
+- `npm run dev`: start the service. Its credentials are in `service/.env`, which is never committed.
+
 ## Rules
 
 - Never put credentials or personal data in Git or the browser. Credentials stay in the TypeScript service.

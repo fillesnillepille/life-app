@@ -1,12 +1,13 @@
-import { useState, type ReactNode } from 'react'
+import { useState } from 'react'
 import { Check, X } from 'lucide-react'
+import { LightsPanel } from '@/components/lights-panel'
+import { Panel } from '@/components/panel'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
 
-// Everything on this page is sample data for judging the design.
+// Everything on this page except the lights is sample data for judging the design.
 const sampleApprovals = [
   { id: 'reply', source: 'MEJL', text: 'Skicka utkastet till svar till exempelkontakten' },
   { id: 'move', source: 'KALENDER', text: 'Flytta exempelbokningen till torsdag 14:00' },
@@ -22,18 +23,6 @@ const sampleTasks = [
   { id: 'one', title: 'Exempeluppgift: betala en räkning', done: true },
   { id: 'two', title: 'Exempeluppgift: boka en service', done: false },
   { id: 'three', title: 'Exempeluppgift: svara på ett meddelande', done: false },
-]
-
-const sampleLights = [
-  { id: 'living', name: 'Vardagsrum', on: true },
-  { id: 'kitchen', name: 'Kök', on: false },
-  { id: 'bedroom', name: 'Sovrum', on: false },
-]
-
-const sampleScenes: { name: string; on: string[] }[] = [
-  { name: 'Film', on: ['living'] },
-  { name: 'Kväll', on: ['living', 'kitchen'] },
-  { name: 'Släck allt', on: [] },
 ]
 
 const sampleStats = [
@@ -58,7 +47,6 @@ export function TodayPage() {
   const [today] = useState(() => dateFormat.format(new Date()))
   const [approvals, setApprovals] = useState(sampleApprovals)
   const [tasks, setTasks] = useState(sampleTasks)
-  const [lights, setLights] = useState(sampleLights)
 
   const resolveApproval = (id: string) =>
     setApprovals((items) => items.filter((item) => item.id !== id))
@@ -68,17 +56,6 @@ export function TodayPage() {
       items.map((item) => (item.id === id ? { ...item, done } : item)),
     )
 
-  const toggleLight = (id: string, on: boolean) =>
-    setLights((items) =>
-      items.map((item) => (item.id === id ? { ...item, on } : item)),
-    )
-
-  const applyScene = (on: string[]) =>
-    setLights((items) =>
-      items.map((item) => ({ ...item, on: on.includes(item.id) })),
-    )
-
-  const lightsOn = lights.filter((light) => light.on).length
   const tasksOpen = tasks.filter((task) => !task.done).length
 
   return (
@@ -152,36 +129,7 @@ export function TodayPage() {
           </ol>
         </Panel>
 
-        <Panel
-          title="Belysning"
-          meta={`${lightsOn} ${lightsOn === 1 ? 'tänd' : 'tända'}`}
-        >
-          <ul className="divide-y">
-            {lights.map((light) => (
-              <li key={light.id}>
-                <label className="flex min-h-11 cursor-pointer items-center justify-between gap-3 px-3 text-sm">
-                  {light.name}
-                  <Switch
-                    checked={light.on}
-                    onCheckedChange={(on) => toggleLight(light.id, on)}
-                  />
-                </label>
-              </li>
-            ))}
-          </ul>
-          <div className="grid grid-cols-3 gap-2 border-t p-3">
-            {sampleScenes.map((scene) => (
-              <Button
-                key={scene.name}
-                variant="outline"
-                className="h-11 px-1 lg:h-8"
-                onClick={() => applyScene(scene.on)}
-              >
-                {scene.name}
-              </Button>
-            ))}
-          </div>
-        </Panel>
+        <LightsPanel />
 
         <Panel
           title="Uppgifter"
@@ -237,7 +185,7 @@ export function TodayPage() {
         </Panel>
       </div>
 
-      <dl className="grid grid-cols-2 divide-x border bg-card">
+      <dl className="grid grid-cols-2 divide-x overflow-hidden rounded-xl border bg-card">
         {sampleStats.map((stat) => (
           <div key={stat.label} className="min-w-0 p-3">
             <dt className="truncate text-[10px] tracking-widest text-muted-foreground">
@@ -253,28 +201,3 @@ export function TodayPage() {
   )
 }
 
-function Panel({
-  title,
-  meta,
-  accent,
-  children,
-}: {
-  title: string
-  meta: string
-  accent?: boolean
-  children: ReactNode
-}) {
-  return (
-    <section
-      className={cn('min-w-0 border bg-card', accent && 'border-primary/60')}
-    >
-      <header className="flex items-center justify-between gap-3 border-b px-3 py-2">
-        <h2 className="text-xs font-semibold tracking-widest uppercase">
-          {title}
-        </h2>
-        <p className="text-xs text-muted-foreground tabular-nums">{meta}</p>
-      </header>
-      {children}
-    </section>
-  )
-}

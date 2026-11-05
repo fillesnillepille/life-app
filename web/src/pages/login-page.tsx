@@ -38,7 +38,7 @@ export function LoginPage() {
     <main className="flex min-h-svh items-center justify-center p-4">
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-sm border border-primary/60 bg-card"
+        className="w-full max-w-sm overflow-hidden rounded-xl border border-primary/60 bg-card"
       >
         <header className="border-b px-4 py-3">
           <p className="text-sm font-semibold tracking-widest">Filip</p>

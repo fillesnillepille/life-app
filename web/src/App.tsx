@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { AppShell } from '@/components/app-shell'
 import { refreshSession, useIsSignedIn } from '@/lib/auth'
 import { allSections, type SectionId } from '@/lib/sections'
+import { HomePage } from '@/pages/home-page'
 import { LoginPage } from '@/pages/login-page'
 import { MorePage } from '@/pages/more-page'
 import { PlaceholderPage } from '@/pages/placeholder-page'
@@ -14,8 +15,9 @@ function SignedInApp() {
   return (
     <AppShell section={section} onNavigate={setSection}>
       {section === 'today' && <TodayPage />}
+      {section === 'home' && <HomePage />}
       {section === 'more' && <MorePage onNavigate={setSection} />}
-      {section !== 'today' && section !== 'more' && current && (
+      {section !== 'today' && section !== 'home' && section !== 'more' && current && (
         <PlaceholderPage title={current.label} />
       )}
     </AppShell>
