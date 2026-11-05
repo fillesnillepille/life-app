@@ -1,4 +1,6 @@
 import type { ReactNode } from 'react'
+import { LogOut } from 'lucide-react'
+import { signOut } from '@/lib/auth'
 import {
   allSections,
   bottomBarSections,
@@ -44,8 +46,16 @@ export function AppShell({ section, onNavigate, children }: AppShellProps) {
             </button>
           ))}
         </nav>
-        <div className="border-t p-4">
+        <div className="space-y-3 border-t p-4">
           <ConnectionStatus status={status} onRetry={retry} />
+          <button
+            type="button"
+            onClick={signOut}
+            className="flex items-center gap-2 text-xs text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <LogOut className="size-3.5" aria-hidden />
+            Logga ut
+          </button>
         </div>
       </aside>
 

@@ -1,4 +1,5 @@
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight, LogOut } from 'lucide-react'
+import { signOut } from '@/lib/auth'
 import { allSections, type SectionId } from '@/lib/sections'
 
 export function MorePage({
@@ -7,8 +8,8 @@ export function MorePage({
   onNavigate: (section: SectionId) => void
 }) {
   return (
-    <section>
-      <h1 className="mb-4 text-lg font-semibold">Mer</h1>
+    <section className="space-y-4">
+      <h1 className="text-lg font-semibold">Mer</h1>
       <div className="divide-y border">
         {allSections.slice(4).map((item) => (
           <button
@@ -23,6 +24,14 @@ export function MorePage({
           </button>
         ))}
       </div>
+      <button
+        type="button"
+        onClick={signOut}
+        className="flex min-h-12 w-full items-center gap-3 border px-3 text-left text-sm hover:bg-accent lg:hidden"
+      >
+        <LogOut className="size-4 text-muted-foreground" aria-hidden />
+        Logga ut
+      </button>
     </section>
   )
 }

@@ -10,11 +10,13 @@ Download the pinned PocketBase version, which only needs doing once or after cha
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/setup-pocketbase.ps1
 ```
 
-Start PocketBase. Its admin UI is at `http://127.0.0.1:8090/_/`:
+Start PocketBase. Its admin UI is at `http://127.0.0.1:8090/_/`, and it applies new migrations from `pocketbase/pb_migrations` on start:
 
 ```bash
 pocketbase/pocketbase.exe serve --dir pocketbase/pb_data --migrationsDir pocketbase/pb_migrations
 ```
+
+Public sign-up is closed, so create your login account by hand: in the admin UI, open **Collections > users > New record**, and enter an email and password. This is separate from the admin account.
 
 In a second terminal, start the web app:
 
