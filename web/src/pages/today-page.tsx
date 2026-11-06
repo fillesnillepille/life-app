@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Check, X } from 'lucide-react'
 import { DayRatingPrompt } from '@/components/day-rating-prompt'
 import { FinanceReminderPanel } from '@/components/finance-reminder'
+import { GarminNoticePanel } from '@/components/garmin-status'
 import { LightsPanel } from '@/components/lights-panel'
 import { MailPanel } from '@/components/mail-panel'
 import { Panel } from '@/components/panel'
@@ -9,21 +10,19 @@ import { SchedulePanel } from '@/components/schedule-panel'
 import { DailyTodosPanel } from '@/components/todo-list'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { formatDuration, formatNumber } from '@/lib/garmin'
+import { todayKey } from '@/lib/schedule'
+import { useGarminDays } from '@/lib/use-garmin'
 import { useNow } from '@/lib/use-now'
 import { useSchedule } from '@/lib/use-schedule'
 import { useTodos } from '@/lib/use-todos'
 import { cn } from '@/lib/utils'
 
-// The approvals, habits, and stats on this page are sample data for judging
-// the design.
+// The approvals and habits on this page are sample data for judging the
+// design.
 const sampleApprovals = [
   { id: 'reply', source: 'MEJL', text: 'Skicka utkastet till svar till exempelkontakten' },
   { id: 'move', source: 'KALENDER', text: 'Flytta exempelbokningen till torsdag 14:00' },
-]
-
-const sampleStats = [
-  { label: 'SÖMN', value: '7 h 12 min' },
-  { label: 'STEG', value: '4 210' },
 ]
 
 const sampleHabits = [
@@ -63,6 +62,8 @@ export function TodayPage() {
       </header>
 
       <FinanceReminderPanel />
+
+      <GarminNoticePanel />
 
       <DayRatingPrompt schedule={schedule} now={now} />
 
@@ -138,19 +139,33 @@ export function TodayPage() {
         </Panel>
       </div>
 
-      <dl className="grid grid-cols-2 divide-x overflow-hidden rounded-xl border bg-card">
-        {sampleStats.map((stat) => (
-          <div key={stat.label} className="min-w-0 p-3">
-            <dt className="truncate text-[10px] tracking-widest text-muted-foreground">
-              {stat.label}
-            </dt>
-            <dd className="mt-1 truncate text-sm font-semibold tabular-nums sm:text-lg">
-              {stat.value}
-            </dd>
-          </div>
-        ))}
-      </dl>
+      <GarminStats today={todayKey(now)} />
     </div>
+  )
+}
+
+// Last night's sleep and today's steps from Garmin, or a dash before
+// anything has synced.
+function GarminStats({ today }: { today: string }) {
+  const { days } = useGarminDays()
+  const day = days?.find((item) => item.date === today)
+  const stats = [
+    { label: 'SÖMN I NATT', value: day?.sleep ? formatDuration(day.sleep) : '–' },
+    { label: 'STEG IDAG', value: day?.steps ? formatNumber(day.steps) : '–' },
+  ]
+  return (
+    <dl className="grid grid-cols-2 divide-x overflow-hidden rounded-xl border bg-card">
+      {stats.map((stat) => (
+        <div key={stat.label} className="min-w-0 p-3">
+          <dt className="truncate text-[10px] tracking-widest text-muted-foreground">
+            {stat.label}
+          </dt>
+          <dd className="mt-1 truncate text-sm font-semibold tabular-nums sm:text-lg">
+            {stat.value}
+          </dd>
+        </div>
+      ))}
+    </dl>
   )
 }
 

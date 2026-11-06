@@ -67,6 +67,16 @@ The first sync takes a couple of minutes, because PocketBase limits how fast rec
 
 To stop it, empty `GMAIL_APP_PASSWORD` and restart the service. To revoke access completely, delete the app password in the Google account.
 
+## Connect Garmin
+
+Training, sleep, and health data come from Garmin Connect's Personal API, which the service reads every hour and copies into PocketBase for Hälsa, Schema, and Idag. It is read-only: the service can't change anything at Garmin. It starts when `GARMIN_API_KEY` and the service user's password are set in `service/.env`.
+
+1. Signed in to Garmin Connect on the web, open **Settings > Personal API Key**, choose **Create Key**, accept the terms, and pick an expiry. A year means the fewest renewals. Garmin shows the key once, so copy it straight into the next step.
+2. In `service/.env` on the VM, set `GARMIN_API_KEY`, and `GARMIN_API_KEY_EXPIRES` to the expiry date as `2027-11-06`, so Hälsa and Idag remind you two weeks before it runs out. The service user from Connect Gmail is shared, so create it first if mail isn't set up. Its rules let it write Garmin data and nothing else.
+3. Restart the service as for Gmail. The first sync takes every activity and up to a year of daily data, then each hour re-reads the last month of activities and the last week of days. "Synka nu" in Hälsa runs one straight away.
+
+When the key is replaced, update both values and restart. If Garmin refuses the key, the service stops asking until it restarts or "Synka nu" is pressed. To revoke access, delete the key in Garmin Connect.
+
 ## Deploy to the app VM
 
 The VM (`192.168.1.12`, Debian with Docker) runs three containers from `deploy/docker-compose.yml`: PocketBase, the service, and Caddy, which serves the built web app and proxies `/api`, `/_`, and `/service` on one address. Caddy listens only on the VM's `127.0.0.1:8080`. `tailscale serve` adds HTTPS and keeps it Tailscale-only.

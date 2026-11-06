@@ -3,6 +3,7 @@ import { describe, it } from 'node:test'
 import { createApp } from './app.ts'
 import { createTokenVerifier, type TokenCheck } from './auth.ts'
 import { createHomeAssistant } from './home-assistant.ts'
+import type { GarminService } from './garmin/types.ts'
 import { noMail } from './mail/sync.ts'
 import { MailUnavailableError, type MailService } from './mail/types.ts'
 
@@ -435,5 +436,49 @@ describe('mail messages', () => {
     const response = await app.request('/mail/messages/7/1', authorized())
     assert.equal(response.status, 503)
     assert.deepEqual(await response.json(), { error: 'mail_not_configured' })
+  })
+})
+
+describe('Garmin routes', () => {
+  const haFetch = (async () => Response.json([])) as typeof fetch
+  const homeAssistant = createHomeAssistant({ url: 'http://ha.test', token: 'x', fetch: haFetch })
+
+  it('says Garmin is not configured when no key is set up', async () => {
+    const app = createApp(homeAssistant, async () => 'valid')
+    const response = await app.request('/garmin/status', authorized())
+    assert.equal(response.status, 200)
+    assert.equal(((await response.json()) as { state: string }).state, 'not_configured')
+  })
+
+  it('runs a sync on request and returns the status after it', async () => {
+    let syncs = 0
+    const status = {
+      state: 'ok' as const,
+      lastSync: '2026-11-06T11:00:00.000Z',
+      lastAttempt: '2026-11-06T11:00:00.000Z',
+      error: null,
+      keyExpires: null,
+    }
+    const garmin: GarminService = {
+      status: () => status,
+      syncNow: async () => {
+        syncs++
+        return status
+      },
+    }
+    const app = createApp(homeAssistant, async () => 'valid', noMail, garmin)
+    const response = await app.request('/garmin/sync', authorized({ method: 'POST' }))
+    assert.equal(response.status, 200)
+    assert.deepEqual(await response.json(), status)
+    assert.equal(syncs, 1)
+  })
+
+  it('needs a signed-in user', async () => {
+    const app = createApp(homeAssistant, async () => 'invalid')
+    const response = await app.request('/garmin/sync', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer nope' },
+    })
+    assert.equal(response.status, 401)
   })
 })

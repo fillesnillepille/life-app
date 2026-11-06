@@ -5,8 +5,10 @@ import { Panel } from '@/components/panel'
 import { RatingForm } from '@/components/rating-form'
 import { Button } from '@/components/ui/button'
 import { dayToPrompt, moodOf, averageOf, type DayRating } from '@/lib/day-rating'
+import { exerciseSuggestion } from '@/lib/garmin'
 import { formatShortDay, isWorkDay, shiftOn, todayKey } from '@/lib/schedule'
 import { useDayRatings } from '@/lib/use-day-ratings'
+import { useGarminActivities, useGarminDays } from '@/lib/use-garmin'
 import type { Schedule } from '@/lib/use-schedule'
 
 // "Hur var dagen?" on Idag: today's grades from the evening, or yesterday's if
@@ -20,6 +22,8 @@ export function DayRatingPrompt({
   now: number
 }) {
   const { ratings, save } = useDayRatings()
+  const { activities } = useGarminActivities()
+  const { days } = useGarminDays()
   const [justSaved, setJustSaved] = useState<DayRating | null>(null)
 
   if (!ratings || !schedule.data) return null
@@ -63,6 +67,7 @@ export function DayRatingPrompt({
           key={date}
           workDay={isWorkDay(shiftOn(date, schedule.data))}
           dayWord={isToday ? 'idag' : 'igår'}
+          suggestion={exerciseSuggestion(date, activities, days)}
           onSave={async (values) => setJustSaved(await save(date, values))}
         />
       </div>

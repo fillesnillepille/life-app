@@ -8,10 +8,16 @@ import { MoodIcon } from '@/components/mood-icon'
 import { OverrideDialog } from '@/components/override-dialog'
 import { RatingDialog } from '@/components/rating-form'
 import { ShiftBadge } from '@/components/shift-badge'
+import { SportIcon } from '@/components/sport-icon'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { canRate, type DayRating } from '@/lib/day-rating'
+import {
+  exerciseSuggestion,
+  timelineActivity,
+  type TimelineActivity,
+} from '@/lib/garmin'
 import {
   addDays,
   cycleWeek,
@@ -25,7 +31,6 @@ import {
   isDateKey,
   isoWeek,
   isWorkDay,
-  minutesOf,
   relativeDay,
   shiftOn,
   sortEntries,
@@ -36,6 +41,7 @@ import {
   type ScheduleEntry,
 } from '@/lib/schedule'
 import { useDayRatings } from '@/lib/use-day-ratings'
+import { useGarminActivities, useGarminDays } from '@/lib/use-garmin'
 import { useNow } from '@/lib/use-now'
 import { useSchedule } from '@/lib/use-schedule'
 import { useTodos, type Todo } from '@/lib/use-todos'
@@ -43,13 +49,15 @@ import { cn } from '@/lib/utils'
 
 type View = 'day' | 'week'
 
-const DAY_HOUR_HEIGHT = 48
+const DAY_HOUR_HEIGHT = 40
 const WEEK_HOUR_HEIGHT = 32
 
 export function SchedulePage() {
   const schedule = useSchedule()
   const todoState = useTodos()
   const { ratings, save: saveRating } = useDayRatings()
+  const { activities } = useGarminActivities()
+  const { days: garminDays } = useGarminDays()
   const now = useNow()
   const today = todayKey(now)
   const [params, setParams] = useSearchParams()
@@ -121,6 +129,12 @@ export function SchedulePage() {
   }
 
   const ratingOn = (key: string) => ratings?.find((item) => item.date === key)
+  // The day's Garmin activities, placed on the timeline.
+  const activitiesOn = (key: string) =>
+    (activities ?? [])
+      .filter((activity) => activity.date === key)
+      .map(timelineActivity)
+      .filter((item): item is TimelineActivity => item !== null)
 
   const toggleEntry = (entry: ScheduleEntry) => {
     const { todo } = entryView(entry, todos)
@@ -141,6 +155,7 @@ export function SchedulePage() {
         dayWord: ratingDate === today ? 'idag' : 'den dagen',
         workDay: isWorkDay(shiftOn(ratingDate, data)),
         existing: ratingOn(ratingDate),
+        suggestion: exerciseSuggestion(ratingDate, activities, garminDays),
       }
     : null
 
@@ -258,6 +273,7 @@ export function SchedulePage() {
           data={data}
           todos={todos}
           rating={ratingOn(date)}
+          activities={activitiesOn(date)}
           onOpenEntry={(entry) => setEntryTarget({ mode: 'edit', entry })}
           onToggleEntry={toggleEntry}
           onChangeDay={() => setOverrideDate(date)}
@@ -271,6 +287,7 @@ export function SchedulePage() {
           data={data}
           todos={todos}
           ratingOn={ratingOn}
+          activitiesOn={activitiesOn}
           onOpenDay={(key) => go('day', key)}
           onOpenEntry={(entry) => setEntryTarget({ mode: 'edit', entry })}
           onToggleEntry={toggleEntry}
@@ -314,6 +331,7 @@ function DayView({
   data,
   todos,
   rating,
+  activities,
   onOpenEntry,
   onToggleEntry,
   onChangeDay,
@@ -325,6 +343,7 @@ function DayView({
   data: ScheduleData & { entries: ScheduleEntry[] }
   todos: Todo[]
   rating?: DayRating
+  activities: TimelineActivity[]
   onOpenEntry: (entry: ScheduleEntry) => void
   onToggleEntry: (entry: ScheduleEntry) => void
   onChangeDay: () => void
@@ -339,20 +358,6 @@ function DayView({
   const rateable = canRate(date, now)
   const isPast = date <= today
 
-  const scroller = useRef<HTMLDivElement>(null)
-  // Open the timeline a little before the first thing on the day, or at 07:00.
-  const firstMinute = Math.min(
-    ...timed.map((entry) => minutesOf(entry.start)),
-    shift.kind === 'shift' ? minutesOf(shift.type.start) : 7 * 60,
-    yesterdayShift.kind === 'shift' && minutesOf(yesterdayShift.type.end) <= minutesOf(yesterdayShift.type.start)
-      ? 0
-      : 24 * 60,
-  )
-  useEffect(() => {
-    if (scroller.current) {
-      scroller.current.scrollTop = Math.max(0, (firstMinute / 60 - 1) * DAY_HOUR_HEIGHT)
-    }
-  }, [date, firstMinute])
 
   const nowDate = new Date(now)
   const nowMinutes =
@@ -402,8 +407,7 @@ function DayView({
       )}
 
       <div
-        ref={scroller}
-        className="max-h-[65svh] overflow-y-auto rounded-xl border bg-card py-2 pr-2"
+        className="rounded-xl border bg-card py-2 pr-2"
         aria-label="Dagens tidslinje"
         role="region"
       >
@@ -414,6 +418,7 @@ function DayView({
             yesterdayShift={yesterdayShift}
             entries={timed}
             spilled={spilled}
+            activities={activities}
             todos={todos}
             hourHeight={DAY_HOUR_HEIGHT}
             nowMinutes={nowMinutes}
@@ -466,6 +471,7 @@ function WeekView({
   data,
   todos,
   ratingOn,
+  activitiesOn,
   onOpenDay,
   onOpenEntry,
   onToggleEntry,
@@ -476,6 +482,7 @@ function WeekView({
   data: ScheduleData & { entries: ScheduleEntry[] }
   todos: Todo[]
   ratingOn: (key: string) => DayRating | undefined
+  activitiesOn: (key: string) => TimelineActivity[]
   onOpenDay: (key: string) => void
   onOpenEntry: (entry: ScheduleEntry) => void
   onToggleEntry: (entry: ScheduleEntry) => void
@@ -498,6 +505,7 @@ function WeekView({
           const shift = shiftOn(key, data)
           const rating = key < today ? ratingOn(key) : undefined
           const entries = dayEntries(key)
+          const dayActivities = activitiesOn(key)
           return (
             <li key={key}>
               <button
@@ -539,6 +547,24 @@ function WeekView({
                               )}
                             >
                               {view.title}
+                            </span>
+                          </span>
+                        )
+                      })}
+                    </span>
+                  )}
+                  {dayActivities.length > 0 && (
+                    <span className="block space-y-0.5">
+                      {dayActivities.map((activity) => {
+                        return (
+                          <span key={activity.id} className="flex gap-2 text-sm">
+                            <span className="w-24 shrink-0 text-xs leading-5 text-muted-foreground tabular-nums">
+                              {activity.start}–{activity.end}
+                            </span>
+                            <span className="flex min-w-0 items-center gap-1.5">
+                              <SportIcon type={activity.type} className="size-3.5 shrink-0" />
+                              <span className="sr-only">Träning från Garmin: </span>
+                              <span className="truncate">{activity.title}</span>
                             </span>
                           </span>
                         )
@@ -619,6 +645,7 @@ function WeekView({
                   yesterdayShift={shiftOn(addDays(key, -1), data)}
                   entries={dayEntries(key).filter((entry) => !entry.allDay)}
                   spilled={spilledEntries(data.entries, key)}
+                  activities={activitiesOn(key)}
                   todos={todos}
                   hourHeight={WEEK_HOUR_HEIGHT}
                   nowMinutes={key === today ? nowMinutes : undefined}

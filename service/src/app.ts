@@ -1,6 +1,8 @@
 import { Hono } from 'hono'
 import type { TokenVerifier } from './auth.ts'
 import { HomeAssistantError, type HomeAssistant } from './home-assistant.ts'
+import { noGarmin } from './garmin/sync.ts'
+import type { GarminService } from './garmin/types.ts'
 import { noMail } from './mail/sync.ts'
 import {
   MailNotConfiguredError,
@@ -40,6 +42,7 @@ export function createApp(
   homeAssistant: HomeAssistant,
   verifyToken: TokenVerifier,
   mail: MailService = noMail,
+  garmin: GarminService = noGarmin,
 ) {
   const app = new Hono()
 
@@ -71,6 +74,11 @@ export function createApp(
   })
 
   app.get('/mail/status', (c) => c.json(mail.status()))
+
+  // Garmin is read-only: the app can ask how the sync is doing and start one
+  // now, and nothing else.
+  app.get('/garmin/status', (c) => c.json(garmin.status()))
+  app.post('/garmin/sync', async (c) => c.json(await garmin.syncNow()))
 
   // A message is named by the mailbox's validity number and its UID, the same
   // pair the app stores. If the mailbox was reset since, the pair no longer

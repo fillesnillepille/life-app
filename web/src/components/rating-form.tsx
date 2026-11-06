@@ -21,6 +21,7 @@ import {
   type GradeKey,
   type RatingValues,
 } from '@/lib/day-rating'
+import type { ExerciseSuggestion } from '@/lib/garmin'
 import { cn } from '@/lib/utils'
 
 type Values = Record<GradeKey, number>
@@ -35,11 +36,14 @@ const empty: Values = {
 }
 
 // The grades for one day: 1-5 in each area, with Arbete on work days, and an
-// optional comment. Every grade that applies must be set before saving.
+// optional comment. Every grade that applies must be set before saving. A
+// Träning grade suggested from Garmin is picked in advance on a new day, and
+// can be changed like any other.
 export function RatingForm({
   workDay,
   dayWord,
   existing,
+  suggestion,
   onSave,
   onCancel,
   footer = 'inline',
@@ -49,14 +53,23 @@ export function RatingForm({
   // "idag" or "igår", for the "Jobbade ..." switch.
   dayWord: string
   existing?: DayRating
+  // From the day's Garmin activities. Only used when the day isn't graded.
+  suggestion?: ExerciseSuggestion | null
   onSave: (values: RatingValues) => Promise<unknown>
   onCancel?: () => void
   // "dialog" puts the buttons in a dialog footer.
   footer?: 'inline' | 'dialog'
 }) {
-  const [values, setValues] = useState<Values>(() =>
+  const [picked, setValues] = useState<Values>(() =>
     existing ? { ...empty, ...pick(existing) } : empty,
   )
+  // The suggestion may load after the form opens, so it fills in Träning
+  // until a grade is picked by hand.
+  const suggested = !existing && suggestion ? suggestion : null
+  const values: Values = {
+    ...picked,
+    exercise: picked.exercise || suggested?.grade || 0,
+  }
   const [extraWork, setExtraWork] = useState(
     !workDay && (existing?.worked ?? false),
   )
@@ -123,11 +136,18 @@ export function RatingForm({
             className="grid gap-2 p-2.5 sm:flex sm:items-center sm:justify-between sm:gap-3"
           >
             <legend className="sr-only">
-              {grade.label}: {grade.hint}
+              {grade.label}:{' '}
+              {grade.key === 'exercise' && suggested && !picked.exercise
+                ? suggested.text
+                : grade.hint}
             </legend>
             <div className="min-w-0 sm:flex-1" aria-hidden>
               <p className="text-sm font-medium">{grade.label}</p>
-              <p className="text-xs text-muted-foreground">{grade.hint}</p>
+              <p className="text-xs text-muted-foreground">
+                {grade.key === 'exercise' && suggested && !picked.exercise
+                  ? suggested.text
+                  : grade.hint}
+              </p>
             </div>
             <div className="flex shrink-0 gap-1">
               {[1, 2, 3, 4, 5].map((value) => (
@@ -226,6 +246,7 @@ export function RatingDialog({
     dayWord: string
     workDay: boolean
     existing?: DayRating
+    suggestion?: ExerciseSuggestion | null
   } | null
   onClose: () => void
   onSave: (date: string, values: RatingValues, existingId?: string) => Promise<unknown>
@@ -250,6 +271,7 @@ export function RatingDialog({
               workDay={shown.workDay}
               dayWord={shown.dayWord}
               existing={shown.existing}
+              suggestion={shown.suggestion}
               footer="dialog"
               onCancel={onClose}
               onSave={async (values) => {

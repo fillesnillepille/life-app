@@ -145,6 +145,15 @@
     --rating: #a78bfa;
 }
 
+/* Garmin data in Hälsa and Schema: orange for training, which no shift
+   colour uses, and a light blue for sleep and recovery. Neither is red or
+   green, and each chart uses only one of them. Activities on the Schema
+   timeline also carry a sport icon, so colour is never the only cue. */
+:root {
+    --activity: #f08a3c;
+    --sleep: #6ba8f5;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
