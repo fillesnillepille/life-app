@@ -155,7 +155,7 @@ Each day can be graded 1-5 in a few areas, and the average becomes a smiley.
 - **Editing.** Only today and yesterday can be graded or changed, so a day isn't re-graded weeks later from memory. Schema's day view has a button for this. The limit is in the app only, not in the PocketBase rules.
 - **Average and smiley** (`web/src/lib/day-rating.ts`). The weighted mean of the grades given, with Allmänt counting double. The average rounds to one of five Lucide faces, from Frown to Laugh. Past days in Schema show their smiley, and the average is in its label. Neither is stored.
 - **Hälsa** (`web/src/pages/health-page.tsx`, loaded only when opened). The day grades come first, then the Garmin sections (see Garmin). It has averages for the last week, the period, and the latest day, and a range switch for 30 days, 90 days, or everything. The charts are the daily average as dots with a 7-day rolling line, each area's average for the period, one chosen area over time, and a month calendar where brighter means a better day. Tapping a calendar day opens it in Schema. The charts use one colour, `--rating`, from dim to bright, so they read without telling red from green.
-- **AI.** Comments are personal data and are never sent to an AI unless that is built and asked for.
+- **AI.** The grades and comments can be read by the AI chat (see AI chat), only when a question needs them.
 - **Tested** in a browser against a throwaway local PocketBase with sample shifts and grades: grading on Idag, the average, linking and ticking entries both ways, scheduling from Listor, overrides, the cycle editor, the charts, and phone width.
 
 ## Garmin
@@ -172,8 +172,20 @@ Training, sleep, and health data from Garmin Connect, shown in Hälsa, Schema, a
 - **Not training.** Breathing exercises and meditation are listed but left out of training time, the grade, and training days.
 - **Idag** shows last night's sleep and today's steps, and the key reminder.
 - **Colours.** `--activity` (orange) for training and `--sleep` (light blue) for sleep and recovery, in `web/src/index.css`. Neither is red or green, and no chart uses both.
-- **AI.** Garmin data is never sent to an AI. Garmin's developer terms are also reported to forbid it.
+- **AI.** Only averages over at most 30 days go to the AI chat (see AI chat), never the stored days or activities. The user judges the health data to be their own. Garmin's developer terms are reported to restrict AI use, so read them again before widening this.
 - **Tested.** The service has tests for the conversion, the token handling and paging, the sync, and the routes. It was also tried against the real Personal API with a throwaway local PocketBase: a real sync, Hälsa, Schema's day and week views, the suggested grade, Idag, and phone width.
+
+## AI chat
+
+The AI button (sidebar on computers, the tab at the bar's right end on phones) opens `/ai`, a chat in Swedish. Holding the button records speech, and letting go sends it. Chat history is not saved: the conversation lives in the page and is gone on reload.
+
+- **Router first.** `web/src/lib/ai-router.ts` handles plain commands in the browser with no AI: "lägg till bädda sängen", "köp mjölk", "lägg till X i inköpslistan", "bocka av X", "ta bort X". Typing or saying a command is the approval, so it runs at once and the reply has an "Ångra" button. Anything about time ("imorgon", "kl 14"), any question, and anything that doesn't match goes to the AI.
+- **The AI.** The browser calls `POST /service/chat` (`service/src/chat/`) with the last messages. The service runs Claude Haiku (`CHAT_MODEL`, default `claude-haiku-5-5`) in a tool loop of at most 6 steps. It starts only when `ANTHROPIC_API_KEY` is set. `CHAT_DAILY_LIMIT` caps model calls per day (200). The log shows only the step number and tool names, never content.
+- **What it can read.** Four read tools: to-dos, schedule (shifts and entries per day), day grades with comments, and Garmin averages. Garmin is only averages over at most 30 days plus activity counts per sport, never day-by-day figures, since the data is the user's own but Garmin's terms are reported to limit bulk use. **It has no tool for mail or money.** The reads use the signed-in user's own PocketBase token (the service keeps it from the request), so the owner-only API rules decide what is visible and the service user needs no access to these collections.
+- **What it can change.** Nothing itself. `suggest_todo` and `suggest_schedule_entry` come back as buttons in the chat ("Lägg till i Dagligt: …"), and the browser writes to PocketBase only when the user presses one. This keeps the approval rule.
+- **Speech.** `web/src/lib/speech.ts` uses the browser's own recognition (`sv-SE`). In Chrome the audio is sent to Google. It is a single function, so a Whisper server can replace it if the server is upgraded. The microphone needs HTTPS, which the Tailscale address has. Holding is 450 ms or more on `web/src/components/ai-button.tsx`; a shorter press opens the chat.
+- **The key.** An Anthropic API key can't renew itself, so a new one is made by hand in the console. Its expiry date goes in `ANTHROPIC_API_KEY_EXPIRES` (`GET /chat/status`), and from a week before, Idag and `/ai` show a reminder (`web/src/components/ai-key-notice.tsx`). If Anthropic refuses the key anyway, or the credit has run out, the chat says so (`ai_key_invalid`).
+- **Not built.** A coach that looks at schedule and health over time, Home Assistant voice commands, saved history, and a shared Att godkänna inbox for suggestions.
 
 ## Lighting
 

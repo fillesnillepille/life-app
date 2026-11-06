@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Check, X } from 'lucide-react'
+import { AiKeyNotice } from '@/components/ai-key-notice'
 import { DayRatingPrompt } from '@/components/day-rating-prompt'
 import { FinanceReminderPanel } from '@/components/finance-reminder'
 import { GarminNoticePanel } from '@/components/garmin-status'
@@ -64,6 +65,8 @@ export function TodayPage() {
       <FinanceReminderPanel />
 
       <GarminNoticePanel />
+
+      <AiKeyNotice />
 
       <DayRatingPrompt schedule={schedule} now={now} />
 

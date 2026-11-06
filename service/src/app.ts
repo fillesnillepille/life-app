@@ -1,6 +1,15 @@
 import { Hono } from 'hono'
 import type { TokenVerifier } from './auth.ts'
 import { HomeAssistantError, type HomeAssistant } from './home-assistant.ts'
+import { noChat } from './chat/chat.ts'
+import {
+  ChatKeyInvalidError,
+  ChatLimitError,
+  ChatNotConfiguredError,
+  ChatUnavailableError,
+  type ChatMessage,
+  type ChatService,
+} from './chat/types.ts'
 import { noGarmin } from './garmin/sync.ts'
 import type { GarminService } from './garmin/types.ts'
 import { noMail } from './mail/sync.ts'
@@ -38,13 +47,30 @@ function parseLightChange(body: unknown) {
   return { on, brightness }
 }
 
+function parseChatMessages(value: unknown): ChatMessage[] | null {
+  if (!Array.isArray(value) || value.length === 0 || value.length > 50) {
+    return null
+  }
+  const messages: ChatMessage[] = []
+  for (const item of value) {
+    if (typeof item !== 'object' || item === null) return null
+    const { role, content } = item as { role?: unknown; content?: unknown }
+    if (role !== 'user' && role !== 'assistant') return null
+    if (typeof content !== 'string' || !content.trim()) return null
+    messages.push({ role, content })
+  }
+  // The model needs the last word to be the user's.
+  return messages[messages.length - 1].role === 'user' ? messages : null
+}
+
 export function createApp(
   homeAssistant: HomeAssistant,
   verifyToken: TokenVerifier,
   mail: MailService = noMail,
   garmin: GarminService = noGarmin,
+  chat: ChatService = noChat,
 ) {
-  const app = new Hono()
+  const app = new Hono<{ Variables: { token: string } }>()
 
   app.onError((error, c) => {
     if (error instanceof HomeAssistantError) {
@@ -53,6 +79,16 @@ export function createApp(
     if (
       error instanceof MailUnavailableError ||
       error instanceof MailNotConfiguredError
+    ) {
+      return c.json({ error: error.message }, 503)
+    }
+    if (error instanceof ChatLimitError) {
+      return c.json({ error: error.message }, 429)
+    }
+    if (
+      error instanceof ChatUnavailableError ||
+      error instanceof ChatKeyInvalidError ||
+      error instanceof ChatNotConfiguredError
     ) {
       return c.json({ error: error.message }, 503)
     }
@@ -70,7 +106,19 @@ export function createApp(
     if (check === 'unavailable') {
       return c.json({ error: 'auth_unavailable' }, 503)
     }
+    c.set('token', token)
     await next()
+  })
+
+  app.get('/chat/status', (c) => c.json(chat.status()))
+
+  app.post('/chat', async (c) => {
+    const body = (await c.req.json().catch(() => null)) as {
+      messages?: unknown
+    } | null
+    const messages = parseChatMessages(body?.messages)
+    if (!messages) return c.json({ error: 'invalid_request' }, 400)
+    return c.json(await chat.reply(c.get('token'), messages))
   })
 
   app.get('/mail/status', (c) => c.json(mail.status()))

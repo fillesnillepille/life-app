@@ -5,6 +5,7 @@ import { Loading } from '@/components/load-status'
 import { refreshSession, useIsSignedIn } from '@/lib/auth'
 import { allSections } from '@/lib/sections'
 import { getStartPage, startPagePaths } from '@/lib/start-page'
+import { AiPage } from '@/pages/ai-page'
 import { HomePage } from '@/pages/home-page'
 import { LoginPage } from '@/pages/login-page'
 import { MailPage } from '@/pages/mail-page'
@@ -96,6 +97,7 @@ function SignedInApp() {
         ))}
         <Route path="/schema/skift" element={<ShiftCyclePage />} />
         <Route path="/mer" element={<MorePage />} />
+        <Route path="/ai" element={<AiPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AppShell>

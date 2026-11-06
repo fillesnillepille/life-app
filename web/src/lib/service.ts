@@ -54,6 +54,11 @@ const errorMessages: Record<string, string> = {
   mail_not_found: 'Mejlet finns inte längre i inkorgen.',
   mail_unavailable: 'Kan inte nå Gmail just nu.',
   mail_not_configured: 'Mejl är inte kopplat än.',
+  ai_not_configured: 'AI är inte kopplat än. Lägg in en API-nyckel i tjänsten.',
+  ai_key_invalid:
+    'Anthropic nekade API-nyckeln. Den kan ha gått ut eller sakna krediter. Kontrollera på console.anthropic.com.',
+  ai_unavailable: 'Kan inte nå AI just nu. Försök igen strax.',
+  ai_limit: 'Dagens gräns för AI är nådd.',
 }
 
 export function serviceErrorMessage(error: unknown) {

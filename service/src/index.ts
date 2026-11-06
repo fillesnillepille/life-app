@@ -1,6 +1,7 @@
 import { serve } from '@hono/node-server'
 import { createApp } from './app.ts'
 import { createTokenVerifier } from './auth.ts'
+import { createChatService, noChat } from './chat/chat.ts'
 import { createGarminSource } from './garmin/garmin-source.ts'
 import { createPocketBaseGarminStore } from './garmin/pocketbase-store.ts'
 import { createGarminSync, noGarmin } from './garmin/sync.ts'
@@ -21,6 +22,10 @@ const {
   GARMIN_API_KEY,
   GARMIN_API_KEY_EXPIRES,
   GARMIN_TIME_ZONE = 'Europe/Stockholm',
+  ANTHROPIC_API_KEY,
+  ANTHROPIC_API_KEY_EXPIRES,
+  CHAT_MODEL = 'claude-haiku-5-5',
+  CHAT_DAILY_LIMIT,
   HOST = '127.0.0.1',
   PORT = '8787',
 } = process.env
@@ -65,11 +70,27 @@ const garminSync =
       })
     : undefined
 
+// The AI chat only starts with an API key. It reads the user's data with the
+// user's own token, so it needs no service login.
+const chat = ANTHROPIC_API_KEY
+  ? createChatService({
+      apiKey: ANTHROPIC_API_KEY,
+      model: CHAT_MODEL,
+      pocketBaseUrl: POCKETBASE_URL,
+      timeZone: GARMIN_TIME_ZONE,
+      dailyLimit: Number(CHAT_DAILY_LIMIT) || 200,
+      keyExpires: /^\d{4}-\d{2}-\d{2}$/.test(ANTHROPIC_API_KEY_EXPIRES ?? '')
+        ? ANTHROPIC_API_KEY_EXPIRES
+        : null,
+    })
+  : noChat
+
 const app = createApp(
   createHomeAssistant({ url: HOME_ASSISTANT_URL, token: HOME_ASSISTANT_TOKEN }),
   createTokenVerifier(POCKETBASE_URL),
   mailSync ?? noMail,
   garminSync ?? noGarmin,
+  chat,
 )
 
 serve({ fetch: app.fetch, hostname: HOST, port: Number(PORT) }, (info) => {
