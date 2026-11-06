@@ -1,24 +1,24 @@
 import { useState } from 'react'
 import { Check, X } from 'lucide-react'
+import { DayRatingPrompt } from '@/components/day-rating-prompt'
+import { FinanceReminderPanel } from '@/components/finance-reminder'
 import { LightsPanel } from '@/components/lights-panel'
 import { MailPanel } from '@/components/mail-panel'
 import { Panel } from '@/components/panel'
+import { SchedulePanel } from '@/components/schedule-panel'
 import { DailyTodosPanel } from '@/components/todo-list'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { useNow } from '@/lib/use-now'
+import { useSchedule } from '@/lib/use-schedule'
+import { useTodos } from '@/lib/use-todos'
 import { cn } from '@/lib/utils'
 
-// Everything on this page except the lights and the to-do list is sample data
-// for judging the design.
+// The approvals, habits, and stats on this page are sample data for judging
+// the design.
 const sampleApprovals = [
   { id: 'reply', source: 'MEJL', text: 'Skicka utkastet till svar till exempelkontakten' },
   { id: 'move', source: 'KALENDER', text: 'Flytta exempelbokningen till torsdag 14:00' },
-]
-
-const sampleSchedule = [
-  { time: '09:00', title: 'Exempelmöte', next: false },
-  { time: '12:30', title: 'Exempellunch', next: true },
-  { time: '17:15', title: 'Exempelträning', next: false },
 ]
 
 const sampleStats = [
@@ -42,6 +42,10 @@ const dateFormat = new Intl.DateTimeFormat('sv-SE', {
 export function TodayPage() {
   const [today] = useState(() => dateFormat.format(new Date()))
   const [approvals, setApprovals] = useState(sampleApprovals)
+  const now = useNow()
+  // Shared by the panels below, so ticking an item in one shows in the other.
+  const schedule = useSchedule()
+  const todoState = useTodos()
 
   const resolveApproval = (id: string) =>
     setApprovals((items) => items.filter((item) => item.id !== id))
@@ -57,6 +61,10 @@ export function TodayPage() {
         </div>
         <Badge variant="outline">Prototyp: exempeldata</Badge>
       </header>
+
+      <FinanceReminderPanel />
+
+      <DayRatingPrompt schedule={schedule} now={now} />
 
       <div className="grid items-start gap-4 lg:grid-cols-3">
         <Panel title="Att godkänna" meta={`${approvals.length} väntar`} accent>
@@ -93,33 +101,11 @@ export function TodayPage() {
           )}
         </Panel>
 
-        <Panel title="Schema" meta={`${sampleSchedule.length} händelser`}>
-          <ol className="divide-y">
-            {sampleSchedule.map((event) => (
-              <li
-                key={event.time}
-                className={cn(
-                  'flex items-center gap-3 border-l-2 border-transparent p-3 text-sm',
-                  event.next && 'border-primary bg-accent/40',
-                )}
-              >
-                <time className="text-muted-foreground tabular-nums">
-                  {event.time}
-                </time>
-                <span className="min-w-0 flex-1">{event.title}</span>
-                {event.next && (
-                  <span className="text-[10px] tracking-widest text-primary">
-                    NÄSTA
-                  </span>
-                )}
-              </li>
-            ))}
-          </ol>
-        </Panel>
+        <SchedulePanel schedule={schedule} todoState={todoState} now={now} />
 
         <LightsPanel />
 
-        <DailyTodosPanel />
+        <DailyTodosPanel state={todoState} />
 
         <MailPanel />
 

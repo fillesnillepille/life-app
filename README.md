@@ -1,6 +1,8 @@
 # Life app
 
-A private, self-hosted app for one person. See [docs/architecture.md](docs/architecture.md) for the decisions behind it.
+A private, self-hosted app for one person. See [docs/architecture.md](docs/architecture.md) for the decisions behind it and how each section works.
+
+Built so far: light control through Home Assistant (Hem), a work schedule with a 5-week shift cycle and planned entries linked to the lists (Schema), to-do and shopping lists (Listor), day grades with charts (Hälsa), a sorted Gmail inbox (Mejl), and monthly money tracking with charts (Ekonomi). Idag is still partly sample data, and the other sections are placeholders.
 
 ## Run it locally
 
@@ -86,4 +88,10 @@ sudo tailscale serve --bg 8080
 5. Create your login at `https://<vm-name>.<tailnet>.ts.net/_/`. Make the PocketBase admin account first, then add a user under **Collections > users**. The VM has its own database in `deploy/data/pb_data`, so the local one doesn't carry over.
 6. On the phone, with Tailscale on, open that address and use **Add to Home screen**.
 
-To update, pull the new code and run the same `docker compose` command again.
+To update, pull the new code and rebuild:
+
+```bash
+git pull && docker compose -f deploy/docker-compose.yml up -d --build
+```
+
+PocketBase applies new migrations from `pocketbase/pb_migrations` when its container starts, so new collections, such as `finance_months` for Ekonomi, need no manual step.

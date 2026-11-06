@@ -21,7 +21,8 @@ function describeError(error: unknown) {
     : 'Något gick fel.'
 }
 
-export function useTodos() {
+// With `enabled` false it loads nothing, for a panel handed another's state.
+export function useTodos(enabled = true) {
   const [todos, setTodos] = useState<Todo[] | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
@@ -40,18 +41,20 @@ export function useTodos() {
   }, [])
 
   useEffect(() => {
+    if (!enabled) return
     const run = () => void load()
     run()
-  }, [load])
+  }, [load, enabled])
 
   const retry = useCallback(() => {
     setLoadError(null)
     void load()
   }, [load])
 
+  // Returns the new item, or null if saving failed.
   const add = useCallback(async (list: TodoListId, title: string) => {
     const user = pb.authStore.record?.id
-    if (!user) return false
+    if (!user) return null
     try {
       const created = await collection().create<Todo>(
         { title, list, done: false, user },
@@ -59,10 +62,10 @@ export function useTodos() {
       )
       setTodos((current) => [created, ...(current ?? [])])
       setActionError(null)
-      return true
+      return created
     } catch (error) {
       setActionError(`Kunde inte lägga till. ${describeError(error)}`)
-      return false
+      return null
     }
   }, [])
 

@@ -117,6 +117,34 @@
     --sidebar-border: oklch(1 0 0 / 16%);
     --sidebar-ring: oklch(0.7 0 0);
 }
+
+/* Ekonomi chart colors: red for expenses, blue for investments, green for
+   savings and the total. Checked against the black background: blue and green
+   stay apart for colour-blind readers too. Red never shares a chart with green. */
+:root {
+    --finance-expenses: #e66767;
+    --finance-investments: #3987e5;
+    --finance-total: #22a04b;
+}
+
+/* Shift colours on the Schema page, picked per shift type. Each is bright
+   enough on black to read as a coloured edge and a faint fill behind white
+   text. Red and green are left out, since red means expenses. */
+:root {
+    --shift-blue: #3987e5;
+    --shift-violet: #9b7bf0;
+    --shift-amber: #e0a526;
+    --shift-cyan: #2bb3c0;
+    --shift-pink: #e0609e;
+    --shift-gray: #8f8f8f;
+}
+
+/* Day grades in Hälsa. One hue, from dim to bright, so the charts and the
+   heatmap read without telling red from green. */
+:root {
+    --rating: #a78bfa;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

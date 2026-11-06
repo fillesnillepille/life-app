@@ -180,6 +180,127 @@ describe('codes', () => {
   })
 })
 
+describe('important senders and security notices', () => {
+  const auto = { autoSubmitted: true }
+
+  it('puts Google security alerts in important', () => {
+    assert.equal(
+      bucketOf({
+        fromAddress: 'no-reply@accounts.google.com',
+        fromName: 'Google',
+        subject: 'Säkerhetsvarning',
+        headers: auto,
+      }),
+      'important',
+    )
+    assert.equal(
+      bucketOf({
+        fromAddress: 'no-reply@accounts.google.com',
+        subject: 'Critical security alert for your linked Google Account',
+        headers: auto,
+      }),
+      'important',
+    )
+  })
+
+  it('puts Apple account mail in important', () => {
+    assert.equal(
+      bucketOf({
+        fromAddress: 'appleid@id.apple.com',
+        fromName: 'Apple',
+        subject: 'Ditt Apple-konto har använts för att logga in',
+        headers: auto,
+      }),
+      'important',
+    )
+  })
+
+  it('puts everything from Kivra in important, even invoices', () => {
+    for (const subject of [
+      'Du har ny post i Kivra',
+      'Faktura från Telia i Kivra',
+      'Nytt dokument från Skatteverket',
+    ]) {
+      assert.equal(
+        bucketOf({
+          fromAddress: 'noreply@kivra.com',
+          fromName: 'Kivra',
+          subject,
+          headers: auto,
+        }),
+        'important',
+        subject,
+      )
+    }
+  })
+
+  it('still puts a code from these senders in codes', () => {
+    assert.equal(
+      bucketOf({
+        fromAddress: 'no-reply@accounts.google.com',
+        subject: 'Din verifieringskod är 482913',
+        headers: auto,
+      }),
+      'codes',
+    )
+  })
+
+  it('treats a changed password as a security notice, not a code', () => {
+    assert.equal(
+      bucketOf({
+        fromAddress: 'noreply@tjanst.example',
+        subject: 'Your password was changed',
+        headers: auto,
+      }),
+      'important',
+    )
+  })
+
+  it('recognises security notices from any service', () => {
+    assert.equal(
+      bucketOf({
+        fromAddress: 'security@tjanst.example',
+        subject: 'Ny inloggning från en okänd enhet',
+        headers: auto,
+      }),
+      'important',
+    )
+  })
+
+  it('does not promote marketing from the same companies', () => {
+    assert.notEqual(
+      bucketOf({
+        fromAddress: 'news@email.apple.com',
+        fromName: 'Apple',
+        subject: 'Nytt från Apple: upptäck Vision Pro',
+        headers: { listUnsubscribe: true },
+      }),
+      'important',
+    )
+    assert.equal(
+      bucketOf({
+        fromAddress: 'nyheter@tidning.example',
+        subject: 'Så skyddar du dig mot a security alert-bluffar',
+        headers: { listUnsubscribe: true },
+      }),
+      'newsletters',
+    )
+  })
+
+  it('marks Kivra mail as sensitive, so no snippet is kept', () => {
+    const record = toRecord(
+      message({
+        fromAddress: 'noreply@kivra.com',
+        fromName: 'Kivra',
+        subject: 'Du har ny post i Kivra',
+        body: 'Ett brev väntar.',
+      }),
+    )
+    assert.equal(record.sensitive, true)
+    assert.equal(record.snippet, '')
+  })
+})
+
 describe('sensitive mail', () => {
   it('flags login codes and keeps no snippet', () => {
     const record = toRecord(

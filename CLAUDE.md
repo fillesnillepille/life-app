@@ -2,7 +2,7 @@
 
 A private, self-hosted app for one person, built with Vite, React, TypeScript, and PocketBase.
 
-- [docs/architecture.md](docs/architecture.md): decisions, server addresses, and the first milestone. Update it when a decision changes.
+- [docs/architecture.md](docs/architecture.md): decisions, server addresses, and how each section (lists, mail, money) works. Update it when a decision changes or a section is built.
 - [README.md](README.md): how to run everything locally.
 
 ## Commands
@@ -12,6 +12,8 @@ Run these from `web/`:
 - `npm run build`: type-check and build
 - `npm run lint`: lint with oxlint
 - `npm run dev`: start the dev server. Port 5173 is often taken by another project, so use the port Vite prints.
+
+Node comes from fnm and isn't on the Bash tool's path, so run `npm` and `npx` through PowerShell.
 
 Run these from `service/`:
 
@@ -33,3 +35,5 @@ Run these from `service/`:
 - All user-facing text is in Swedish, including labels, messages, and accessibility text. Format dates and numbers with the `sv-SE` locale.
 - Add components with `npx shadcn@latest add <name>` from `web/`, and use Lucide for icons.
 - Avoid hand-editing `web/src/components/ui/`, because re-applying a shadcn preset overwrites those files.
+- Charts use the shadcn `chart` component (Recharts). Ekonomi's colours have fixed meanings: red for expenses, blue for investments, and green for savings and the total. They're tokens in `web/src/index.css`. Keep red and green out of the same chart, because colour-blind readers can't tell them apart.
+- Lazy-load pages that pull in large libraries, as `App.tsx` does for the mail message page and Ekonomi.

@@ -1,32 +1,19 @@
-# React + TypeScript + Vite
+# Web app
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+The Vite, React, and TypeScript front end. See the [root README](../README.md) for how to run it, and [docs/architecture.md](../docs/architecture.md) for how each section works.
 
-Currently, two official plugins are available:
+## Layout
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- `src/App.tsx`: routes. Sections without a page show `PlaceholderPage`.
+- `src/pages/`: one file per page, such as `money-page.tsx` (Ekonomi) and `money-month-page.tsx` (entering a month).
+- `src/components/`: shared pieces. `panel.tsx` is the boxed section used across pages, and `load-status.tsx` has the loading and error rows.
+- `src/components/ui/`: shadcn components. Add them with `npx shadcn@latest add <name>` and avoid editing them by hand.
+- `src/lib/`: data and helpers. Each PocketBase collection has a `use-*.ts` hook (`use-todos.ts`, `use-mails.ts`, `use-finance.ts`). `sections.ts` lists the sections and the bottom bar, and `pocketbase.ts` sets up the client.
 
-## React Compiler
+## Commands
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- `npm run dev`: start the dev server
+- `npm run build`: type-check and build
+- `npm run lint`: lint with oxlint
 
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
-```
-
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+All text the user sees is Swedish, and dates and numbers use the `sv-SE` locale.

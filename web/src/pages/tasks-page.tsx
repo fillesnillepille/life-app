@@ -3,12 +3,14 @@ import { TodoList } from '@/components/todo-list'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { lists } from '@/lib/todo-lists'
 import { useNow } from '@/lib/use-now'
+import { useScheduledTodos } from '@/lib/use-schedule'
 import { useTodos } from '@/lib/use-todos'
 
 export function TasksPage() {
   const { todos, loadError, actionError, retry, add, toggle, remove } =
     useTodos()
   const now = useNow()
+  const scheduled = useScheduledTodos()
 
   return (
     <section className="space-y-4">
@@ -46,6 +48,7 @@ export function TasksPage() {
                 onAdd={(title) => add(list.id, title)}
                 onToggle={toggle}
                 onRemove={remove}
+                scheduled={scheduled}
               />
             </TabsContent>
           ))}

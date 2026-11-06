@@ -1,5 +1,6 @@
 import {
   CalendarDays,
+  CalendarRange,
   Ellipsis,
   HeartPulse,
   Images,
@@ -13,6 +14,7 @@ import {
 
 export type SectionId =
   | 'today'
+  | 'schedule'
   | 'home'
   | 'tasks'
   | 'health'
@@ -32,6 +34,7 @@ type NavItem = {
 
 export const allSections: NavItem[] = [
   { id: 'today', path: '/idag', label: 'Idag', icon: CalendarDays },
+  { id: 'schedule', path: '/schema', label: 'Schema', icon: CalendarRange },
   { id: 'home', path: '/hem', label: 'Hem', icon: Lightbulb },
   { id: 'tasks', path: '/listor', label: 'Listor', icon: ListChecks },
   { id: 'health', path: '/halsa', label: 'Hälsa', icon: HeartPulse },
@@ -48,17 +51,29 @@ export const moreSection: NavItem = {
   icon: Ellipsis,
 }
 
+const bottomBarIds: SectionId[] = [
+  'today',
+  'schedule',
+  'home',
+  'tasks',
+  'health',
+  'money',
+  'mail',
+]
+
 export const bottomBarSections: NavItem[] = [
-  ...allSections.slice(0, 4),
+  ...allSections.filter((item) => bottomBarIds.includes(item.id)),
   moreSection,
 ]
 
+// The sections that only the "Mer" page leads to.
+export const moreSections: NavItem[] = allSections.filter(
+  (item) => !bottomBarIds.includes(item.id),
+)
+
 export const moreSectionIds: SectionId[] = [
   'more',
-  'money',
-  'goals',
-  'mail',
-  'photos',
+  ...moreSections.map((item) => item.id),
 ]
 
 export function sectionIdFromPath(pathname: string): SectionId | undefined {

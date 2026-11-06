@@ -46,11 +46,11 @@ export const bucketLabels: Record<Bucket, string> = {
 // The order buckets are shown in: what needs attention first.
 export const bucketOrder: Bucket[] = [
   'important',
+  'codes',
   'invoices',
   'deliveries',
   'bookings',
   'other',
-  'codes',
   'newsletters',
   'promotions',
 ]

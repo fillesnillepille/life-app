@@ -49,6 +49,7 @@ const SENSITIVE_SENDER = [
   "csn.se",
   "1177",
   "mina meddelanden",
+  "kivra",
 ];
 
 const PROMOTION = [
@@ -126,6 +127,46 @@ const BOOKING = [
   "appointment",
 ];
 
+// Senders whose mail always matters: account security from Google, Apple and
+// Microsoft, and Kivra, where letters from authorities and companies arrive.
+// A one-time code from them still goes to Koder.
+const IMPORTANT_SENDER = [
+  "accounts.google.com",
+  "id.apple.com",
+  "appleid",
+  "accountprotection.microsoft.com",
+  "account.microsoft.com",
+  "kivra",
+];
+
+// Security notices from any service: new sign-ins, suspicious activity, and a
+// changed password. These come before the codes rule, because a notice that
+// the password was changed is not a code. Bulk mail is never treated as a
+// security notice, so a newsletter about "security" isn't promoted.
+const SECURITY_SUBJECT = [
+  "säkerhetsvarning",
+  "säkerhetsavisering",
+  "security alert",
+  "critical security",
+  "suspicious",
+  "misstänkt",
+  "ny inloggning",
+  "ovanlig inloggning",
+  "ny enhet",
+  "new sign-in",
+  "new login",
+  "new device",
+  "unusual sign-in",
+  "password was changed",
+  "password has been changed",
+  "password changed",
+  "lösenordet har ändrats",
+  "lösenordet har bytts",
+  "kontot har låsts",
+  "account has been locked",
+  "account was locked",
+];
+
 const NO_REPLY =
   /(^|[^a-z])(no-?reply|do-?not-?reply|donotreply|notifications?|mailer|bounce)([^a-z]|$)/;
 
@@ -156,9 +197,16 @@ export function classify(message: MailMessage): Classification {
     bulk,
   });
 
-  // Codes first: a login code is never an invoice or a newsletter, even from a
+  // Account security notices matter more than anything else.
+  if (!bulk && includesAny(subject, SECURITY_SUBJECT)) return pick("important");
+
+  // Codes next: a login code is never an invoice or a newsletter, even from a
   // sender that sends those too.
   if (isCode) return pick("codes");
+
+  // Then the senders whose mail is always worth reading, whatever the subject.
+  // Kivra's "faktura" notices are important letters, not ordinary invoices.
+  if (includesAny(sender, IMPORTANT_SENDER)) return pick("important");
 
   // Bulk mail with sales language is advertising, whatever else it mentions.
   if (bulk && includesAny(subject, PROMOTION)) return pick("promotions");

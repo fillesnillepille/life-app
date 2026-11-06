@@ -10,6 +10,8 @@ import { LoginPage } from '@/pages/login-page'
 import { MailPage } from '@/pages/mail-page'
 import { MorePage } from '@/pages/more-page'
 import { PlaceholderPage } from '@/pages/placeholder-page'
+import { SchedulePage } from '@/pages/schedule-page'
+import { ShiftCyclePage } from '@/pages/shift-cycle-page'
 import { TasksPage } from '@/pages/tasks-page'
 import { TodayPage } from '@/pages/today-page'
 
@@ -21,11 +23,40 @@ const MailMessagePage = lazy(() =>
   })),
 )
 
+// The Ekonomi pages need the chart library, which is large, so they are only
+// downloaded when opened.
+const MoneyPage = lazy(() =>
+  import('@/pages/money-page').then((module) => ({ default: module.MoneyPage })),
+)
+const MoneyMonthPage = lazy(() =>
+  import('@/pages/money-month-page').then((module) => ({
+    default: module.MoneyMonthPage,
+  })),
+)
+
+// Hälsa's day-grade charts need the chart library too.
+const HealthPage = lazy(() =>
+  import('@/pages/health-page').then((module) => ({ default: module.HealthPage })),
+)
+
+const moneyFallback = <Loading>Hämtar ekonomin…</Loading>
+
 // Sections with a real page. The rest show a placeholder until they're built.
 const pages: Record<string, React.ReactNode> = {
   today: <TodayPage />,
+  schedule: <SchedulePage />,
   home: <HomePage />,
   tasks: <TasksPage />,
+  health: (
+    <Suspense fallback={<Loading>Hämtar hälsan…</Loading>}>
+      <HealthPage />
+    </Suspense>
+  ),
+  money: (
+    <Suspense fallback={moneyFallback}>
+      <MoneyPage />
+    </Suspense>
+  ),
   mail: <MailPage />,
 }
 
@@ -52,6 +83,18 @@ function SignedInApp() {
             </Suspense>
           }
         />
+        {['/ekonomi/manad', '/ekonomi/manad/:month'].map((path) => (
+          <Route
+            key={path}
+            path={path}
+            element={
+              <Suspense fallback={moneyFallback}>
+                <MoneyMonthPage />
+              </Suspense>
+            }
+          />
+        ))}
+        <Route path="/schema/skift" element={<ShiftCyclePage />} />
         <Route path="/mer" element={<MorePage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

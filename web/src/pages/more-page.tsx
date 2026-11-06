@@ -1,14 +1,14 @@
 import { ChevronRight, LogOut } from 'lucide-react'
 import { Link } from 'react-router'
 import { signOut } from '@/lib/auth'
-import { allSections } from '@/lib/sections'
+import { moreSections } from '@/lib/sections'
 
 export function MorePage() {
   return (
     <section className="space-y-4">
       <h1 className="text-lg font-semibold">Mer</h1>
       <div className="divide-y overflow-hidden rounded-xl border">
-        {allSections.slice(4).map((item) => (
+        {moreSections.map((item) => (
           <Link
             key={item.id}
             to={item.path}

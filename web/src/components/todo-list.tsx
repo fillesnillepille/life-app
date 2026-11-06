@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
-import { Plus, X } from 'lucide-react'
+import { Link } from 'react-router'
+import { CalendarPlus, Plus, X } from 'lucide-react'
 import { LoadError, Loading } from '@/components/load-status'
 import { Panel } from '@/components/panel'
 import {
@@ -12,9 +13,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
+import {
+  entryTime,
+  formatShortDay,
+  todayKey,
+  type ScheduleEntry,
+} from '@/lib/schedule'
 import { lists, type ListConfig } from '@/lib/todo-lists'
 import { useNow } from '@/lib/use-now'
 import { useTodos, type Todo } from '@/lib/use-todos'
@@ -62,9 +69,16 @@ function formatWhen(value: string, withTime: boolean) {
 
 // The daily list on its own, with its own loading and error states, for pages
 // that show just that list.
-export function DailyTodosPanel() {
+export function DailyTodosPanel({
+  state,
+}: {
+  // The page's own list state, so other panels on it stay in step. Loads its
+  // own when left out.
+  state?: ReturnType<typeof useTodos>
+}) {
+  const own = useTodos(!state)
   const { todos, loadError, actionError, retry, add, toggle, remove } =
-    useTodos()
+    state ?? own
   const now = useNow()
   const config = lists[0]
 
@@ -101,14 +115,18 @@ export function TodoList({
   onAdd,
   onToggle,
   onRemove,
+  scheduled,
 }: {
   config: ListConfig
   now: number
   todos: Todo[]
   actionError: string | null
-  onAdd: (title: string) => Promise<boolean>
+  // Resolves to something falsy if saving failed.
+  onAdd: (title: string) => Promise<unknown>
   onToggle: (todo: Todo) => void
   onRemove: (todo: Todo) => void
+  // Schema entries that point to each item, soonest first.
+  scheduled?: Map<string, ScheduleEntry[]>
 }) {
   const [title, setTitle] = useState('')
   // The item waiting for the user to confirm its removal. It stays set while
@@ -198,6 +216,7 @@ export function TodoList({
               doneLabel={config.doneLabel ?? 'Klar'}
               onToggle={onToggle}
               onRemove={askToRemove}
+              scheduled={scheduled?.get(todo.id)}
             />
           ))}
         </ul>
@@ -223,6 +242,7 @@ export function TodoList({
                 doneLabel={config.doneLabel ?? 'Klar'}
                 onToggle={onToggle}
                 onRemove={askToRemove}
+                scheduled={scheduled?.get(todo.id)}
               />
             ))}
           </ul>
@@ -256,6 +276,7 @@ function TodoRow({
   doneLabel,
   onToggle,
   onRemove,
+  scheduled,
 }: {
   todo: Todo
   // Daily items show the time of day too, and are flagged when they go stale.
@@ -264,8 +285,13 @@ function TodoRow({
   doneLabel: string
   onToggle: (todo: Todo) => void
   onRemove: (todo: Todo) => void
+  scheduled?: ScheduleEntry[]
 }) {
   const added = formatWhen(todo.created, daily)
+  const today = todayKey(now)
+  // The next time it's planned, or the last one if all are past.
+  const planned =
+    scheduled?.find((entry) => entry.date >= today) ?? scheduled?.at(-1)
   const finished = todo.doneAt ? formatWhen(todo.doneAt, daily) : ''
   const overdue =
     daily &&
@@ -298,9 +324,26 @@ function TodoRow({
           <span className="text-xs text-muted-foreground tabular-nums">
             {added && `Tillagd ${added}`}
             {finished && ` · ${doneLabel} ${finished}`}
+            {planned &&
+              ` · Schemalagd ${formatShortDay(planned.date)} ${
+                planned.allDay ? '' : planned.start
+              }`.trimEnd()}
           </span>
         </span>
       </label>
+      {!todo.done && (
+        <Link
+          to={`/schema?vy=dag&datum=${planned?.date ?? today}&schemalagg=${todo.id}`}
+          className={cn(
+            buttonVariants({ variant: 'ghost', size: 'icon' }),
+            'size-11 shrink-0 text-muted-foreground lg:size-8',
+          )}
+          aria-label={`Schemalägg ${todo.title}`}
+          title={planned ? `Schemalagd ${entryTime(planned).toLowerCase()}` : 'Schemalägg'}
+        >
+          <CalendarPlus aria-hidden />
+        </Link>
+      )}
       <Button
         variant="ghost"
         size="icon"

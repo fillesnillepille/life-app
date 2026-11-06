@@ -14,10 +14,20 @@ import {
   type PocketBaseStatus,
 } from '@/lib/use-pocketbase-status'
 
+// How much wider the selected bottom-bar tab is than the others.
+const ACTIVE_GROW = 2
+
 export function AppShell({ children }: { children: ReactNode }) {
   const { status, retry } = usePocketBaseStatus()
   const { pathname } = useLocation()
   const section = sectionIdFromPath(pathname)
+  // "Mer" also counts as active on the sections it leads to.
+  const activeIndex = bottomBarSections.findIndex((item) =>
+    item.id === 'more'
+      ? section !== undefined && moreSectionIds.includes(section)
+      : section === item.id,
+  )
+  const totalGrow = bottomBarSections.length - 1 + ACTIVE_GROW
 
   return (
     <div className="min-h-svh lg:grid lg:grid-cols-[13rem_1fr]">
@@ -55,7 +65,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      <div className="min-w-0 pb-20 lg:pb-0">
+      <div className="min-w-0 pb-24 lg:pb-0">
         <header className="flex items-center justify-between border-b px-4 py-3 lg:hidden">
           <p className="text-sm font-semibold tracking-widest">Filip</p>
           <ConnectionStatus status={status} onRetry={retry} />
@@ -65,26 +75,50 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <nav
         aria-label="Sektioner"
-        className="fixed inset-x-0 bottom-0 z-10 grid grid-cols-5 border-t bg-sidebar pb-[env(safe-area-inset-bottom)] lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-10 flex border-t bg-sidebar pb-[env(safe-area-inset-bottom)] lg:hidden"
       >
-        {bottomBarSections.map((item) => {
-          // "Mer" also counts as active on the sections it leads to.
-          const active =
-            item.id === 'more'
-              ? section !== undefined && moreSectionIds.includes(section)
-              : section === item.id
+        {/* One fixed-size bar that slides to the selected tab. Its position and
+            width follow the tabs' flex-grow ratios (1 each, ACTIVE_GROW for the
+            selected one). */}
+        <span
+          aria-hidden
+          className={cn(
+            'pointer-events-none absolute top-0 h-0.5 bg-primary transition-[left,opacity] duration-300 ease-out motion-reduce:transition-none',
+            activeIndex < 0 && 'opacity-0',
+          )}
+          style={{
+            width: `${(ACTIVE_GROW / totalGrow) * 100}%`,
+            left: `${(Math.max(activeIndex, 0) / totalGrow) * 100}%`,
+          }}
+        />
+        {bottomBarSections.map((item, index) => {
+          const active = index === activeIndex
           return (
             <Link
               key={item.id}
               to={item.path}
               aria-current={active ? 'page' : undefined}
               className={cn(
-                'flex min-h-14 flex-col items-center justify-center gap-1 border-t-2 border-transparent text-[11px] text-muted-foreground',
-                active && 'border-primary text-primary',
+                'flex min-h-16 basis-0 items-center justify-center overflow-hidden text-muted-foreground transition-[flex-grow,color] duration-300 ease-out motion-reduce:transition-none',
+                active ? 'text-primary' : 'grow',
               )}
+              style={active ? { flexGrow: ACTIVE_GROW } : undefined}
             >
-              <item.icon className="size-5" aria-hidden />
-              {item.label}
+              <item.icon
+                className={cn(
+                  'shrink-0 transition-[width,height] duration-300 ease-out motion-reduce:transition-none',
+                  active ? 'size-6' : 'size-5',
+                )}
+                aria-hidden
+              />
+              <span
+                className={cn(
+                  'overflow-hidden whitespace-nowrap text-xs font-medium transition-[max-width,margin,opacity] duration-300 ease-out motion-reduce:transition-none',
+                  active ? 'ml-2 max-w-20 opacity-100' : 'ml-0 max-w-0 opacity-0',
+                )}
+              >
+                {item.label}
+              </span>
             </Link>
           )
         })}
