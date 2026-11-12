@@ -18,6 +18,9 @@ export type ChatAction =
       allDay: boolean
       start: string
       end: string
+      // Set when the entry is a new to-do item: the app adds the item to this
+      // list and links the entry to it, so they share their done state.
+      list?: 'daily' | 'longterm' | 'bucket' | 'shopping'
     }
 
 export type ChatReply = {

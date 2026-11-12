@@ -119,6 +119,44 @@ describe('chat service', () => {
     ])
   })
 
+  it('keeps the list on a schedule entry that is also a to-do item', async () => {
+    const { chat } = service([
+      use('suggest_schedule_entry', {
+        title: 'Träna',
+        date: '2026-11-13',
+        start: '14:00',
+        end: '15:00',
+        list: 'daily',
+      }),
+      text('Jag föreslår det.'),
+    ])
+    const reply = await chat.reply('t', ask('Lägg till träna 14–15 imorgon'))
+    assert.deepEqual(reply.actions, [
+      {
+        type: 'add_schedule_entry',
+        title: 'Träna',
+        date: '2026-11-13',
+        allDay: false,
+        start: '14:00',
+        end: '15:00',
+        list: 'daily',
+      },
+    ])
+  })
+
+  it('rejects a schedule entry with an unknown list', async () => {
+    const { chat } = service([
+      use('suggest_schedule_entry', {
+        title: 'Träna',
+        date: '2026-11-13',
+        list: 'nope',
+      }),
+      text('Det gick inte.'),
+    ])
+    const reply = await chat.reply('t', ask('x'))
+    assert.deepEqual(reply.actions, [])
+  })
+
   it('rejects invalid suggestions and unknown tools as tool errors', async () => {
     const { chat, requests } = service([
       use('suggest_todo', { title: 'x', list: 'nope' }),

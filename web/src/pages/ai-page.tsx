@@ -26,6 +26,8 @@ type ChatAction =
       allDay: boolean
       start: string
       end: string
+      // Also add it as a to-do item in this list, linked to the entry.
+      list?: TodoListId
     }
 
 type ActionState = {
@@ -40,6 +42,9 @@ type Message = {
   actions?: ActionState[]
   undo?: () => Promise<unknown>
   undone?: boolean
+  // Written by the app, not by Claude: replies to plain commands, errors, and
+  // the commands themselves. Kept out of the history sent to Claude.
+  local?: boolean
 }
 
 const listName = (id: TodoListId) =>
@@ -55,7 +60,8 @@ function describeAction(action: ChatAction) {
     month: 'short',
   }).format(parseDateKey(action.date))
   const time = action.allDay ? 'heldag' : `${action.start}–${action.end}`
-  return `Schemalägg ${day}, ${time}: ${action.title}`
+  const where = action.list ? ` (i ${listName(action.list)})` : ''
+  return `Schemalägg ${day}, ${time}: ${action.title}${where}`
 }
 
 const examples = [
@@ -107,11 +113,13 @@ export function AiPage() {
         if (!created) {
           return push({
             role: 'assistant',
+            local: true,
             text: 'Kunde inte lägga till. Försök igen.',
           })
         }
         return push({
           role: 'assistant',
+          local: true,
           text: `Lade till ”${created.title}” i ${listName(command.list)}.`,
           undo: () => remove(created),
         })
@@ -120,6 +128,7 @@ export function AiPage() {
       if (!todos) {
         return push({
           role: 'assistant',
+          local: true,
           text: 'Listorna är inte hämtade än. Försök igen strax.',
         })
       }
@@ -127,12 +136,14 @@ export function AiPage() {
       if (found.length === 0) {
         return push({
           role: 'assistant',
+          local: true,
           text: `Hittade inget öppet som matchar ”${command.query}”.`,
         })
       }
       if (found.length > 1) {
         return push({
           role: 'assistant',
+          local: true,
           text: `Flera matchar ”${command.query}”: ${found
             .map((todo) => todo.title)
             .join(', ')}. Skriv hela namnet.`,
@@ -143,6 +154,7 @@ export function AiPage() {
         await toggle(todo)
         return push({
           role: 'assistant',
+          local: true,
           text: `Bockade av ”${todo.title}”.`,
           undo: () => toggle({ ...todo, done: true }),
         })
@@ -150,6 +162,7 @@ export function AiPage() {
       await remove(todo)
       return push({
         role: 'assistant',
+        local: true,
         text: `Tog bort ”${todo.title}”.`,
         undo: () => add(todo.list, todo.title),
       })
@@ -162,16 +175,21 @@ export function AiPage() {
       const text = raw.trim()
       if (!text || busy) return
       setInput('')
-      push({ role: 'user', text })
+      const command = parseCommand(text)
+      push({ role: 'user', text, local: command !== null })
       setBusy(true)
       try {
-        const command = parseCommand(text)
         if (command) {
           await runCommand(command)
           return
         }
+        // Only Claude's own turns go back to Claude. Local command replies
+        // and error messages would read as its earlier answers, which it can't
+        // stand behind.
         const history = [
-          ...messagesRef.current.map((m) => ({ role: m.role, content: m.text })),
+          ...messagesRef.current
+            .filter((m) => !m.local)
+            .map((m) => ({ role: m.role, content: m.text })),
           { role: 'user' as const, content: text },
         ]
         // The model wants the conversation to start with the user.
@@ -192,7 +210,11 @@ export function AiPage() {
           })),
         })
       } catch (error) {
-        push({ role: 'assistant', text: serviceErrorMessage(error) })
+        push({
+          role: 'assistant',
+          text: serviceErrorMessage(error),
+          local: true,
+        })
       } finally {
         setBusy(false)
       }
@@ -232,6 +254,14 @@ export function AiPage() {
       } else {
         const user = pb.authStore.record?.id
         if (!user) throw new Error('Inte inloggad')
+        // A to-do item first, so the entry can point to it and share its
+        // done state, as the entry dialog does.
+        let todo = ''
+        if (action.list) {
+          const created = await add(action.list, action.title)
+          if (!created) throw new Error('Kunde inte lägga till i listan.')
+          todo = created.id
+        }
         await pb.collection('schedule_entries').create(
           {
             title: action.title,
@@ -239,7 +269,7 @@ export function AiPage() {
             allDay: action.allDay,
             start: action.start,
             end: action.end,
-            todo: '',
+            todo,
             done: false,
             user,
           },
