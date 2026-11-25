@@ -10,9 +10,15 @@ export type PocketBaseOptions = {
   // PocketBase limits how fast records can be created (by default 20 per 5
   // seconds), so creates are spaced out to stay under that.
   createGapMs?: number
-  // Test hook.
+  // Test hooks.
   sleep?: (ms: number) => Promise<void>
+  now?: () => number
 }
+
+// PocketBase doesn't answer 401 to an expired token: it treats the request as
+// a guest's, so writes fail with 400 and reads come back empty. Signing in
+// again well before any token can run out avoids that.
+const TOKEN_MAX_AGE_MS = 60 * 60 * 1000
 
 export type PocketBaseClient = ReturnType<typeof createPocketBaseClient>
 
@@ -22,7 +28,9 @@ export function createPocketBaseClient(options: PocketBaseOptions) {
   const sleep =
     options.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)))
   const createGapMs = options.createGapMs ?? 350
+  const now = options.now ?? Date.now
   let token = ''
+  let signedInAt = 0
   let lastCreate = 0
 
   // Waits until at least createGapMs has passed since the previous create.
@@ -51,10 +59,11 @@ export function createPocketBaseClient(options: PocketBaseOptions) {
       )
     }
     token = ((await response.json()) as { token: string }).token
+    signedInAt = now()
   }
 
   async function request(path: string, init: RequestInit = {}): Promise<Response> {
-    if (!token) await signIn()
+    if (!token || now() - signedInAt > TOKEN_MAX_AGE_MS) await signIn()
     const send = () =>
       doFetch(`${base}${path}`, {
         ...init,

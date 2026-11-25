@@ -21,7 +21,10 @@ const record: MailRecord = {
 
 type Call = { method: string; path: string; authorization: string | null; body?: unknown }
 
-function setup(handler: (call: Call, signIns: number) => Response) {
+function setup(
+  handler: (call: Call, signIns: number) => Response,
+  now?: () => number,
+) {
   const calls: Call[] = []
   const sleeps: number[] = []
   let signIns = 0
@@ -49,6 +52,7 @@ function setup(handler: (call: Call, signIns: number) => Response) {
     sleep: async (ms) => {
       sleeps.push(ms)
     },
+    now,
   })
   return { store, calls, sleeps }
 }
@@ -88,6 +92,18 @@ describe('PocketBase mail store', () => {
     await store.create(record)
     const writes = calls.filter((c) => c.path === '/api/collections/mails/records')
     assert.deepEqual(writes.map((c) => c.authorization), ['token-1', 'token-2'])
+  })
+
+  it('signs in again before an old token can run out', async () => {
+    let clock = 0
+    const { store, calls } = setup(() => Response.json({}), () => clock)
+    await store.create(record)
+    clock += 30 * 60 * 1000
+    await store.update('abc', { seen: true })
+    clock += 2 * 60 * 60 * 1000
+    await store.remove('abc')
+    const used = calls.filter((c) => !c.path.includes('auth-with-password'))
+    assert.deepEqual(used.map((c) => c.authorization), ['token-1', 'token-1', 'token-2'])
   })
 
   it('reads every page of stored mail', async () => {
